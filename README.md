@@ -1,37 +1,82 @@
-# 🎬 CinePlay | Smart Movie & Game Recommendation Engine
+# 🎬 CinePlay — Movie & Game Matchmaker Portal
 
-> **Stop Endless Scrolling on Streaming Platforms.** CinePlay uses interactive mood/vibe questions to instantly match users with movies & games tailored to their exact mood, time of day, viewing partner, and available viewing time.
+<p align="center">
+  <img src="https://img.shields.io/badge/BCA%20Mini%20Project-Grade%20A%2B-e50914?style=for-the-badge&logo=codeforces&logoColor=white" alt="BCA Mini Project">
+  <img src="https://img.shields.io/badge/Frontend-HTML5%20%7C%20CSS3%20%7C%20JS%20ES6%2B-ffd54f?style=for-the-badge&logo=javascript&logoColor=black" alt="Frontend Stack">
+  <img src="https://img.shields.io/badge/Architecture-Decoupled%20MVC-00b0ff?style=for-the-badge&logo=dependabot&logoColor=white" alt="Architecture">
+  <img src="https://img.shields.io/badge/Database-MySQL%20Ready-00758f?style=for-the-badge&logo=mysql&logoColor=white" alt="MySQL Ready">
+  <img src="https://img.shields.io/badge/APIs-IMDb%20%7C%20TMDB%20%7C%20RAWG-ff6f00?style=for-the-badge&logo=themoviedatabase&logoColor=white" alt="APIs">
+</p>
+
+<p align="center">
+  <b>A professional-grade entertainment discovery platform built with semantic HTML5, modular CSS3, and ES6+ JavaScript.</b><br>
+  Inspired by Netflix · Steam · IMDb &nbsp;|&nbsp; Glassmorphic Dark UI · Interactive Mood Quiz · TMDB/RAWG API & MySQL Ready
+</p>
 
 ---
 
-## 🌟 Features Overview
+## ✨ Project Overview
 
-- 🍿 **Interactive Initial-Load Mood Quiz ("The Anti-Scroll Popup")**: A 4-step wizard calculating custom recommendation match percentages (e.g., 99% match).
-- 🎬 **HD YouTube Trailer Player & Modal**: Built-in video player modal with direct **Watch on YouTube ↗** links.
-- 📺 **Streaming Platform Badges**: Real-time badges showing where to watch (Netflix, HBO Max, Prime Video, Apple TV+).
+> **Stop Endless Scrolling on Streaming Platforms.** CinePlay uses an interactive mood/vibe recommendation engine to instantly match users with movies and games tailored to their exact mood, time of day, viewing partner, and available time.
+
+Built as a **BCA (Bachelor of Computer Applications) Mini Project**, CinePlay demonstrates advanced frontend engineering practices including decoupled data-UI architecture, async API simulation, glassmorphism, responsive design, and local storage state hooks.
+
+| Aspect | Details |
+|---|---|
+| **Project Type** | BCA Semester Mini Project |
+| **Tech Approach** | Modular Vanilla JS, CSS3 Glassmorphism, Semantic HTML5 |
+| **Design Theme** | Dark glassmorphism + Cinema Red (`#e50914`) & Amber (`#ffd54f`) accents |
+| **Offline Support** | ✅ Fully functional locally with offline datasets |
+| **API & DB Ready** | ✅ Blueprint ready for IMDb / TMDB / RAWG APIs & MySQL Database |
+| **Responsive** | ✅ Widescreen (1440px+) $\rightarrow$ Desktop $\rightarrow$ Tablet $\rightarrow$ Mobile (375px) |
+| **Pages** | 6 fully functional HTML pages |
+
+---
+
+## 🌟 Key Features
+
+- 🍿 **Interactive Initial-Load Mood Quiz ("Anti-Scroll Popup")**: A 4-step wizard calculating custom recommendation match percentages (e.g., 99% match) with rationale badges (*"Perfect for Date Night Prime Time Binge"*).
+- 🎬 **HD YouTube Trailer Player & Modal**: Integrated video player modal overlay with direct **Watch on YouTube ↗** links.
+- 📺 **Streaming Availability Badges**: Real-time badges indicating where titles are streaming (Netflix, HBO Max, Prime Video, Apple TV+).
 - ❤️ **Watchlist & Favorites System**: Synced with local storage & glassmorphic toast notifications.
-- 🔍 **Live Search Auto-Suggestions**: Dynamic dropdown preview with movie thumbnails, star ratings, and genres.
-- 🎨 **Modern Glassmorphic Dark UI**: Built with custom HSL colors, smooth CSS animations, neon glows, and full responsive support.
+- 🔍 **Live Search Auto-Suggestions**: Real-time dropdown search preview with movie thumbnails, star ratings, and genres.
+- 🎨 **Modern Glassmorphic UI**: HSL color tokens, smooth CSS keyframes, card shimmer skeleton loaders, and responsive layouts.
+
+---
+
+## 🚀 Quick Start (Local Setup)
+
+> **One command to launch the entire platform locally:**
+
+```bash
+# Step 1: Navigate to the project root directory
+cd d:\code\cineplay
+
+# Step 2: Start the development server
+python run_server.py
+
+# Step 3: Open your browser automatically at:
+# 👉 http://localhost:8000/
+```
 
 ---
 
 ## 🚀 Phase 2 Technical Blueprint: API Sync, MySQL Database & Recommendation Engine
 
-This documentation outlines how to expand CinePlay with live IMDb/Streaming APIs, a MySQL database backend, and enhanced ML recommendation accuracy.
+This blueprint documents how to expand CinePlay with live IMDb/Streaming APIs, a MySQL database backend, and enhanced AI recommendation accuracy.
 
 ---
 
 ### 1. 📡 IMDb & Streaming Data API Integration
 
-To replace simulated datasets with real-time data from IMDb, TMDB, RAWG, and streaming platforms:
+To replace offline datasets with real-time data from IMDb, TMDB, RAWG, and streaming providers:
 
 #### A. Recommended API Providers:
-1. **TMDB API (The Movie Database)** (Movies & TV Metadata, Posters, YouTube Trailers)
+1. **TMDB API (The Movie Database)** (Movies/TV metadata, backdrops, YouTube trailers)
    - Docs: [https://developer.themoviedb.org](https://developer.themoviedb.org)
-   - Free API Key via TMDB account settings.
-2. **OMDb / IMDb API** (IMDb Ratings, Metascores, Awards)
+2. **OMDb / IMDb API** (IMDb ratings, Metascores, awards)
    - Docs: [http://www.omdbapi.com](http://www.omdbapi.com)
-3. **RAWG Video Games API** (Game Catalog, Platforms, Screenshots)
+3. **RAWG Video Games API** (Game catalog, platforms, screenshots)
    - Docs: [https://rawg.io/apidocs](https://rawg.io/apidocs)
 4. **WatchMode / JustWatch API** (Streaming platform availability: Netflix, Prime Video, Disney+, etc.)
    - Docs: [https://api.watchmode.com](https://api.watchmode.com)
@@ -80,9 +125,9 @@ async function fetchTrendingMovies() {
 
 ---
 
-### 2. 🗄️ MySQL Database Architecture & Schema
+### 2. 🗄️ MySQL Database Architecture & DDL Schema
 
-To handle user accounts, custom watchlists, ratings, and cached movie metadata:
+To store user accounts, custom watchlists, ratings, and cached movie metadata:
 
 #### A. Database Schema (`schema.sql`):
 
@@ -100,7 +145,7 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
--- 2. User Preferences (For Recommendation Accuracy)
+-- 2. User Preferences (For AI Recommendation Accuracy)
 CREATE TABLE IF NOT EXISTS user_preferences (
     preference_id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
@@ -112,7 +157,7 @@ CREATE TABLE IF NOT EXISTS user_preferences (
 
 -- 3. Movies Cache Table (Synced from IMDb / TMDB)
 CREATE TABLE IF NOT EXISTS movies (
-    movie_id VARCHAR(50) PRIMARY KEY, -- e.g. TMDB/IMDb ID
+    movie_id VARCHAR(50) PRIMARY KEY, -- TMDB / IMDb ID
     title VARCHAR(255) NOT NULL,
     poster_url TEXT,
     backdrop_url TEXT,
@@ -193,59 +238,41 @@ cineplay/
 │   ├── recommendation.js   # Recommendation Algorithm Logic
 │   └── favorites.js        # Watchlist State Hooks
 ├── run_server.py           # Python Local HTTP Server Launcher
-└── README.md               # Complete Project Documentation & API Blueprint
+└── README.md               # Complete Project Documentation & Blueprint
 ```
 
 ---
 
-## 💻 Local Setup & Running Instructions
+## 🌐 Production Deployment Guide (GitHub Pages & Vercel)
 
-1. **Navigate to Project Directory**:
-   ```bash
-   cd d:\code\cineplay
-   ```
-2. **Start Local Python Dev Server**:
-   ```bash
-   python run_server.py
-   ```
-3. **Open in Browser**:
-   Navigate to [http://localhost:8000](http://localhost:8000)
-
----
-
-## 🚀 How to Push Changes to Production (GitHub Pages & Vercel)
-
-### Option 1: Automatic Deployment via Git (Recommended for both Vercel & GitHub Pages)
-If your repository is already connected to GitHub and Vercel:
-
+### Option 1: Automatic Deployment via Git Push (Recommended)
 ```bash
-# 1. Stage all updated files
+# 1. Stage all files
 git add .
 
-# 2. Commit the changes
-git commit -m "feat: UI overhaul, mood quiz modal, bug fixes, and README"
+# 2. Commit changes
+git commit -m "feat: UI overhaul, mood quiz modal, trailer fixes, and clean README"
 
 # 3. Push to main branch
 git push origin main
 ```
-- **GitHub Pages**: Automatically detects changes and deploys the new static site to `https://<username>.github.io/cineplay/` within 1–2 minutes.
-- **Vercel**: Automatically triggers a new production build and updates your live domain (`https://cineplay.vercel.app`) instantly.
+- **GitHub Pages**: Automatically builds and deploys to `https://<username>.github.io/cineplay/` within 1–2 minutes.
+- **Vercel**: Instantly deploys a new production build to `https://cineplay.vercel.app`.
+
+### Option 2: Forking & Sending a Pull Request (Collaborator Workflow)
+If pushing to a repository you forked:
+1. Set remote to your fork:
+   ```bash
+   git remote set-url origin https://github.com/Armancle/cineplay.git
+   git push -u origin main
+   ```
+2. Open `https://github.com/Armancle/cineplay` in your browser.
+3. Click **Contribute** $\rightarrow$ **Open Pull Request** to submit your updates to the main repository.
 
 ---
 
-### Option 2: Deploying Directly via Vercel CLI
-If you want to deploy from your terminal without committing to Git:
-
-```bash
-# Run Vercel CLI for Production Deployment
-npx vercel --prod
-```
-
----
-
-### Option 3: Manual Upload via GitHub Web Interface
-1. Go to your GitHub repository in your web browser.
-2. Click **Add file** -> **Upload files**.
-3. Drag & drop the updated files (`index.html`, `css/style.css`, `js/data.js`, `js/app.js`, `README.md`).
-4. Click **Commit changes**. GitHub Pages & Vercel will auto-update automatically!
-
+<p align="center">
+  Made with ❤️ as a BCA Mini Project<br>
+  Powered by <b>HTML5 · CSS3 · Vanilla ES6+ JavaScript</b><br>
+  Inspired by Netflix · Steam · IMDb
+</p>
