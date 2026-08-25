@@ -9,6 +9,16 @@
     gap: 20px;
   }
 
+  .slide-container {
+    flex-direction: column;
+    text-align: center;
+    justify-content: center;
+  }
+
+  .slide-poster-wrap {
+    display: none;
+  }
+
   .slide-title {
     font-size: 34px;
   }

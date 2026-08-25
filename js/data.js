@@ -2,8 +2,8 @@ const moviesData = [
   {
     id: "m1",
     title: "Inception",
-    poster: "https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=600&auto=format&fit=crop",
-    backdrop: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=1200&auto=format&fit=crop",
+    poster: "images/posters/m1.jpg",
+    backdrop: "images/posters/m1.jpg",
     genre: ["Sci-Fi", "Action", "Thriller"],
     rating: 8.8,
     year: 2010,
@@ -18,8 +18,8 @@ const moviesData = [
   {
     id: "m2",
     title: "The Dark Knight",
-    poster: "https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?q=80&w=600&auto=format&fit=crop",
-    backdrop: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=1200&auto=format&fit=crop",
+    poster: "images/posters/m2.jpg",
+    backdrop: "images/posters/m2.jpg",
     genre: ["Action", "Crime", "Drama"],
     rating: 9.0,
     year: 2008,
@@ -34,8 +34,8 @@ const moviesData = [
   {
     id: "m3",
     title: "Interstellar",
-    poster: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=600&auto=format&fit=crop",
-    backdrop: "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?q=80&w=1200&auto=format&fit=crop",
+    poster: "images/posters/interstellar.png",
+    backdrop: "images/hero/interstellar-banner.jpg",
     genre: ["Sci-Fi", "Drama", "Adventure"],
     rating: 8.7,
     year: 2014,
@@ -50,8 +50,8 @@ const moviesData = [
   {
     id: "m4",
     title: "Spirited Away",
-    poster: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=600&auto=format&fit=crop",
-    backdrop: "https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=1200&auto=format&fit=crop",
+    poster: "images/posters/m4.png",
+    backdrop: "images/posters/m4.png",
     genre: ["Animation", "Adventure", "Fantasy"],
     rating: 8.6,
     year: 2001,
@@ -66,8 +66,8 @@ const moviesData = [
   {
     id: "m5",
     title: "Parasite",
-    poster: "https://images.unsplash.com/photo-1593085512500-5d55148d6f0d?q=80&w=600&auto=format&fit=crop",
-    backdrop: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=1200&auto=format&fit=crop",
+    poster: "images/posters/m5.png",
+    backdrop: "images/posters/m5.png",
     genre: ["Drama", "Thriller", "Comedy"],
     rating: 8.5,
     year: 2019,
@@ -82,8 +82,8 @@ const moviesData = [
   {
     id: "m6",
     title: "Whiplash",
-    poster: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=600&auto=format&fit=crop",
-    backdrop: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?q=80&w=1200&auto=format&fit=crop",
+    poster: "images/posters/m6.jpg",
+    backdrop: "images/posters/m6.jpg",
     genre: ["Drama", "Music"],
     rating: 8.5,
     year: 2014,
@@ -98,8 +98,8 @@ const moviesData = [
   {
     id: "m7",
     title: "Dune: Part Two",
-    poster: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=600&auto=format&fit=crop",
-    backdrop: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=1200&auto=format&fit=crop",
+    poster: "images/posters/dune-part-two.png",
+    backdrop: "images/hero/dune-part-two-banner.jpg",
     genre: ["Sci-Fi", "Action", "Adventure"],
     rating: 8.9,
     year: 2024,
@@ -114,8 +114,8 @@ const moviesData = [
   {
     id: "m8",
     title: "Spider-Man: Into the Spider-Verse",
-    poster: "https://images.unsplash.com/photo-1608889175123-8ec330b86f84?q=80&w=600&auto=format&fit=crop",
-    backdrop: "https://images.unsplash.com/photo-1635805737707-575885ab0820?q=80&w=1200&auto=format&fit=crop",
+    poster: "images/posters/m8.png",
+    backdrop: "images/posters/m8.png",
     genre: ["Animation", "Action", "Adventure"],
     rating: 8.4,
     year: 2018,
@@ -130,8 +130,8 @@ const moviesData = [
   {
     id: "m9",
     title: "Get Out",
-    poster: "https://images.unsplash.com/photo-1509248961158-e54f6934749c?q=80&w=600&auto=format&fit=crop",
-    backdrop: "https://images.unsplash.com/photo-1509248961158-e54f6934749c?q=80&w=1200&auto=format&fit=crop",
+    poster: "images/posters/m9.png",
+    backdrop: "images/posters/m9.png",
     genre: ["Horror", "Mystery", "Thriller"],
     rating: 7.8,
     year: 2017,
@@ -146,8 +146,8 @@ const moviesData = [
   {
     id: "m10",
     title: "Blade Runner 2049",
-    poster: "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?q=80&w=600&auto=format&fit=crop",
-    backdrop: "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?q=80&w=1200&auto=format&fit=crop",
+    poster: "images/posters/m10.png",
+    backdrop: "images/posters/m10.png",
     genre: ["Sci-Fi", "Action", "Mystery"],
     rating: 8.0,
     year: 2017,
@@ -162,8 +162,8 @@ const moviesData = [
   {
     id: "m11",
     title: "The Shawshank Redemption",
-    poster: "https://images.unsplash.com/photo-1485846234645-a62644f84728?q=80&w=600&auto=format&fit=crop",
-    backdrop: "https://images.unsplash.com/photo-1485846234645-a62644f84728?q=80&w=1200&auto=format&fit=crop",
+    poster: "images/posters/m11.jpg",
+    backdrop: "images/posters/m11.jpg",
     genre: ["Drama"],
     rating: 9.3,
     year: 1994,
@@ -178,8 +178,8 @@ const moviesData = [
   {
     id: "m12",
     title: "Pulp Fiction",
-    poster: "https://images.unsplash.com/photo-1594909122845-11baa439b7bf?q=80&w=600&auto=format&fit=crop",
-    backdrop: "https://images.unsplash.com/photo-1594909122845-11baa439b7bf?q=80&w=1200&auto=format&fit=crop",
+    poster: "images/posters/m12.jpg",
+    backdrop: "images/posters/m12.jpg",
     genre: ["Crime", "Drama"],
     rating: 8.9,
     year: 1994,
@@ -194,8 +194,8 @@ const moviesData = [
   {
     id: "m13",
     title: "Mad Max: Fury Road",
-    poster: "https://images.unsplash.com/photo-1514539079130-25950c84af65?q=80&w=600&auto=format&fit=crop",
-    backdrop: "https://images.unsplash.com/photo-1514539079130-25950c84af65?q=80&w=1200&auto=format&fit=crop",
+    poster: "images/posters/m13.jpg",
+    backdrop: "images/posters/m13.jpg",
     genre: ["Action", "Sci-Fi", "Adventure"],
     rating: 8.1,
     year: 2015,
@@ -210,8 +210,8 @@ const moviesData = [
   {
     id: "m14",
     title: "La La Land",
-    poster: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?q=80&w=600&auto=format&fit=crop",
-    backdrop: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?q=80&w=1200&auto=format&fit=crop",
+    poster: "images/posters/m14.png",
+    backdrop: "images/posters/m14.png",
     genre: ["Comedy", "Drama", "Music"],
     rating: 8.0,
     year: 2016,
@@ -226,8 +226,8 @@ const moviesData = [
   {
     id: "m15",
     title: "The Matrix",
-    poster: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?q=80&w=600&auto=format&fit=crop",
-    backdrop: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?q=80&w=1200&auto=format&fit=crop",
+    poster: "images/posters/m15.png",
+    backdrop: "images/posters/m15.png",
     genre: ["Sci-Fi", "Action"],
     rating: 8.7,
     year: 1999,
@@ -242,8 +242,8 @@ const moviesData = [
   {
     id: "m16",
     title: "Avatar: The Way of Water",
-    poster: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=600&auto=format&fit=crop",
-    backdrop: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=1200&auto=format&fit=crop",
+    poster: "images/posters/m16.jpg",
+    backdrop: "images/posters/m16.jpg",
     genre: ["Sci-Fi", "Action", "Adventure"],
     rating: 7.6,
     year: 2022,
@@ -258,8 +258,8 @@ const moviesData = [
   {
     id: "m17",
     title: "Joker",
-    poster: "https://images.unsplash.com/photo-1531259683007-016a7b628fc3?q=80&w=600&auto=format&fit=crop",
-    backdrop: "https://images.unsplash.com/photo-1531259683007-016a7b628fc3?q=80&w=1200&auto=format&fit=crop",
+    poster: "images/posters/m17.jpg",
+    backdrop: "images/posters/m17.jpg",
     genre: ["Crime", "Drama", "Thriller"],
     rating: 8.4,
     year: 2019,
@@ -274,8 +274,8 @@ const moviesData = [
   {
     id: "m18",
     title: "A Quiet Place",
-    poster: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=600&auto=format&fit=crop",
-    backdrop: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=1200&auto=format&fit=crop",
+    poster: "images/posters/m18.png",
+    backdrop: "images/posters/m18.png",
     genre: ["Horror", "Sci-Fi", "Thriller"],
     rating: 7.5,
     year: 2018,
@@ -290,8 +290,8 @@ const moviesData = [
   {
     id: "m19",
     title: "Gladiator",
-    poster: "https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?q=80&w=600&auto=format&fit=crop",
-    backdrop: "https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?q=80&w=1200&auto=format&fit=crop",
+    poster: "images/posters/m19.png",
+    backdrop: "images/posters/m19.png",
     genre: ["Action", "Adventure", "Drama"],
     rating: 8.5,
     year: 2000,
@@ -306,8 +306,8 @@ const moviesData = [
   {
     id: "m20",
     title: "Your Name.",
-    poster: "https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=600&auto=format&fit=crop",
-    backdrop: "https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=1200&auto=format&fit=crop",
+    poster: "images/posters/m20.png",
+    backdrop: "images/posters/m20.png",
     genre: ["Animation", "Drama", "Fantasy"],
     rating: 8.4,
     year: 2016,
@@ -322,8 +322,8 @@ const moviesData = [
   {
     id: "m21",
     title: "Everything Everywhere All at Once",
-    poster: "https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=600&auto=format&fit=crop",
-    backdrop: "https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=1200&auto=format&fit=crop",
+    poster: "images/posters/m21.jpg",
+    backdrop: "images/posters/m21.jpg",
     genre: ["Action", "Comedy", "Sci-Fi"],
     rating: 8.7,
     year: 2022,
@@ -341,7 +341,7 @@ const gamesData = [
   {
     id: "g1",
     title: "The Witcher 3: Wild Hunt",
-    cover: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=600&auto=format&fit=crop",
+    cover: "images/posters/g1.jpg",
     genre: ["RPG", "Action", "Fantasy"],
     platform: ["PC", "PlayStation", "Xbox", "Nintendo Switch"],
     rating: 9.7,
@@ -354,7 +354,7 @@ const gamesData = [
   {
     id: "g2",
     title: "Elden Ring",
-    cover: "https://images.unsplash.com/photo-1612287230202-1bf1d85d1bdf?q=80&w=600&auto=format&fit=crop",
+    cover: "images/posters/elden-ring.png",
     genre: ["RPG", "Action", "Dark Fantasy"],
     platform: ["PC", "PlayStation", "Xbox"],
     rating: 9.6,
@@ -367,7 +367,7 @@ const gamesData = [
   {
     id: "g3",
     title: "Red Dead Redemption 2",
-    cover: "https://images.unsplash.com/photo-1533130061792-64b345e4a833?q=80&w=600&auto=format&fit=crop",
+    cover: "images/posters/g3.jpg",
     genre: ["Action", "Adventure", "Open World"],
     platform: ["PC", "PlayStation", "Xbox"],
     rating: 9.8,
@@ -380,7 +380,7 @@ const gamesData = [
   {
     id: "g4",
     title: "The Legend of Zelda: Breath of the Wild",
-    cover: "https://images.unsplash.com/photo-1551103782-8ab07afd45c1?q=80&w=600&auto=format&fit=crop",
+    cover: "images/posters/g4.jpg",
     genre: ["Adventure", "Action", "Open World"],
     platform: ["Nintendo Switch"],
     rating: 9.5,
@@ -393,7 +393,7 @@ const gamesData = [
   {
     id: "g5",
     title: "Cyberpunk 2077",
-    cover: "https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=600&auto=format&fit=crop",
+    cover: "images/posters/g5.jpg",
     genre: ["RPG", "Sci-Fi", "Action"],
     platform: ["PC", "PlayStation", "Xbox"],
     rating: 8.6,
@@ -406,7 +406,7 @@ const gamesData = [
   {
     id: "g6",
     title: "God of War Ragnarök",
-    cover: "https://images.unsplash.com/photo-1552820728-8b83bb6b773f?q=80&w=600&auto=format&fit=crop",
+    cover: "images/posters/g6.jpg",
     genre: ["Action", "Adventure", "Mythology"],
     platform: ["PlayStation"],
     rating: 9.5,
@@ -419,7 +419,7 @@ const gamesData = [
   {
     id: "g7",
     title: "Hades",
-    cover: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=600&auto=format&fit=crop",
+    cover: "images/posters/g7.jpg",
     genre: ["Roguelike", "Action", "Indie"],
     platform: ["PC", "PlayStation", "Xbox", "Nintendo Switch"],
     rating: 9.3,
@@ -432,7 +432,7 @@ const gamesData = [
   {
     id: "g8",
     title: "Minecraft",
-    cover: "https://images.unsplash.com/photo-1605901309584-818e25960a8f?q=80&w=600&auto=format&fit=crop",
+    cover: "images/posters/g8.jpg",
     genre: ["Sandbox", "Survival"],
     platform: ["PC", "PlayStation", "Xbox", "Nintendo Switch"],
     rating: 9.0,
@@ -445,7 +445,7 @@ const gamesData = [
   {
     id: "g9",
     title: "Portal 2",
-    cover: "https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=600&auto=format&fit=crop",
+    cover: "images/posters/g9.jpg",
     genre: ["Puzzle", "Sci-Fi", "Comedy"],
     platform: ["PC", "PlayStation", "Xbox", "Nintendo Switch"],
     rating: 9.8,
@@ -458,7 +458,7 @@ const gamesData = [
   {
     id: "g10",
     title: "Resident Evil 4 (Remake)",
-    cover: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=600&auto=format&fit=crop",
+    cover: "images/posters/g10.jpg",
     genre: ["Horror", "Action", "Thriller"],
     platform: ["PC", "PlayStation", "Xbox"],
     rating: 9.4,
@@ -471,7 +471,7 @@ const gamesData = [
   {
     id: "g11",
     title: "Hollow Knight",
-    cover: "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?q=80&w=600&auto=format&fit=crop",
+    cover: "images/posters/g11.jpg",
     genre: ["Metroidvania", "Indie", "Adventure"],
     platform: ["PC", "PlayStation", "Xbox", "Nintendo Switch"],
     rating: 9.4,
@@ -484,7 +484,7 @@ const gamesData = [
   {
     id: "g12",
     title: "GTA V",
-    cover: "https://images.unsplash.com/photo-1538481199705-c710c4e965fc?q=80&w=600&auto=format&fit=crop",
+    cover: "images/posters/g12.png",
     genre: ["Action", "Open World", "Crime"],
     platform: ["PC", "PlayStation", "Xbox"],
     rating: 9.5,
@@ -497,7 +497,7 @@ const gamesData = [
   {
     id: "g13",
     title: "Marvel's Spider-Man 2",
-    cover: "https://images.unsplash.com/photo-1608889175123-8ec330b86f84?q=80&w=600&auto=format&fit=crop",
+    cover: "images/posters/g13.jpg",
     genre: ["Action", "Adventure", "Superhero"],
     platform: ["PlayStation"],
     rating: 9.2,
@@ -510,7 +510,7 @@ const gamesData = [
   {
     id: "g14",
     title: "Baldur's Gate 3",
-    cover: "https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=600&auto=format&fit=crop",
+    cover: "images/posters/g14.jpg",
     genre: ["RPG", "Fantasy"],
     platform: ["PC", "PlayStation", "Xbox"],
     rating: 9.8,
@@ -523,7 +523,7 @@ const gamesData = [
   {
     id: "g15",
     title: "Stardew Valley",
-    cover: "https://images.unsplash.com/photo-1500485035595-cbe6f645feb1?q=80&w=600&auto=format&fit=crop",
+    cover: "images/posters/g15.png",
     genre: ["Simulation", "Indie", "RPG"],
     platform: ["PC", "PlayStation", "Xbox", "Nintendo Switch"],
     rating: 9.2,
@@ -536,7 +536,7 @@ const gamesData = [
   {
     id: "g16",
     title: "Alan Wake 2",
-    cover: "https://images.unsplash.com/photo-1509248961158-e54f6934749c?q=80&w=600&auto=format&fit=crop",
+    cover: "images/posters/g16.jpg",
     genre: ["Horror", "Mystery", "Thriller"],
     platform: ["PC", "PlayStation", "Xbox"],
     rating: 9.1,
@@ -549,7 +549,7 @@ const gamesData = [
   {
     id: "g17",
     title: "Super Mario Odyssey",
-    cover: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=600&auto=format&fit=crop",
+    cover: "images/posters/g17.jpg",
     genre: ["Platformer", "Adventure", "Family"],
     platform: ["Nintendo Switch"],
     rating: 9.4,
@@ -562,7 +562,7 @@ const gamesData = [
   {
     id: "g18",
     title: "The Last of Us Part I",
-    cover: "https://images.unsplash.com/photo-1594909122845-11baa439b7bf?q=80&w=600&auto=format&fit=crop",
+    cover: "images/posters/g18.jpg",
     genre: ["Action", "Adventure", "Post-Apocalyptic"],
     platform: ["PC", "PlayStation"],
     rating: 9.6,
@@ -575,7 +575,7 @@ const gamesData = [
   {
     id: "g19",
     title: "Persona 5 Royal",
-    cover: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=600&auto=format&fit=crop",
+    cover: "images/posters/g19.jpg",
     genre: ["RPG", "Anime", "Turn-Based"],
     platform: ["PC", "PlayStation", "Xbox", "Nintendo Switch"],
     rating: 9.5,
@@ -588,7 +588,7 @@ const gamesData = [
   {
     id: "g20",
     title: "Outer Wilds",
-    cover: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=600&auto=format&fit=crop",
+    cover: "images/posters/g20.jpg",
     genre: ["Adventure", "Sci-Fi", "Mystery"],
     platform: ["PC", "PlayStation", "Xbox", "Nintendo Switch"],
     rating: 9.4,
@@ -601,7 +601,7 @@ const gamesData = [
   {
     id: "g21",
     title: "Disco Elysium",
-    cover: "https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=600&auto=format&fit=crop",
+    cover: "images/posters/g21.jpg",
     genre: ["RPG", "Detective", "Indie"],
     platform: ["PC", "PlayStation", "Xbox", "Nintendo Switch"],
     rating: 9.6,

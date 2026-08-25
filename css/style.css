@@ -136,17 +136,41 @@ header.sticky {
 }
 
 .logo {
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 800;
-  letter-spacing: 1px;
-  display: flex;
+  letter-spacing: 0.5px;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   color: var(--text-primary);
+  text-decoration: none;
+  transition: transform var(--transition-speed) ease;
+}
+
+.logo i {
+  color: #ffffff;
+  font-size: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, #ff1e27 0%, #e50914 100%);
+  border-radius: 10px;
+  padding-left: 3px;
+  box-shadow: 0 4px 14px rgba(255, 30, 39, 0.45);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.logo:hover i {
+  transform: scale(1.12) rotate(6deg);
+  box-shadow: 0 0 22px rgba(255, 30, 39, 0.75);
 }
 
 .logo span {
-  background: var(--accent-gradient);
+  color: #ff1e27;
+  font-weight: 800;
+  background: linear-gradient(135deg, #ff1e27 0%, #e50914 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -244,15 +268,55 @@ header.sticky {
   filter: brightness(0.45);
 }
 
-.slide-content {
+.slide-bg-blur {
+  filter: brightness(0.35) blur(12px) scale(1.08) !important;
+}
+
+.slide-container {
   position: absolute;
-  bottom: 15%;
-  left: 5%;
-  right: 5%;
-  max-width: 600px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -45%);
+  width: 90%;
+  max-width: 1200px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 40px;
   z-index: 10;
+}
+
+.slide-content {
+  position: relative;
+  max-width: 580px;
   color: #fff;
   animation: fadeIn 0.8s ease-out forwards;
+}
+
+.slide-poster-wrap {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  perspective: 1000px;
+}
+
+.slide-vertical-poster {
+  height: 440px;
+  width: auto;
+  max-width: 320px;
+  border-radius: 18px;
+  object-fit: cover;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 35px rgba(229, 9, 20, 0.35);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.4s ease;
+  animation: float 4s ease-in-out infinite;
+}
+
+.slide-vertical-poster:hover {
+  transform: scale(1.05) translateY(-8px) rotateY(-5deg);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.9), 0 0 50px rgba(255, 30, 39, 0.6);
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
 .slide-tag {

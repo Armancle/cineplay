@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CinePlay | Movie & Game Recommendations</title>
   <meta name="description" content="Discover your next favorite movie or game. Personalized recommendations, glassmorphic dark interface, and interactive filtering.">
+  <!-- Favicon / Website Icon -->
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -46,55 +48,61 @@
   <section class="hero-slider" id="hero-slider">
     <!-- Slide 1 -->
     <div class="slide active">
-      <img src="https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=1440&auto=format&fit=crop" alt="Dune: Part Two" class="slide-img">
-      <div class="slide-content">
-        <span class="slide-tag">Trending Movie</span>
-        <h1 class="slide-title">Dune: Part Two</h1>
-        <div class="slide-meta">
-          <span class="rating"><i class="fa-solid fa-star"></i> 8.9</span>
-          <span>2024</span>
-          <span>Sci-Fi / Action</span>
-        </div>
-        <p class="slide-desc">Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family.</p>
-        <div class="slide-actions">
-          <button class="btn btn-primary" onclick="CinePlay.openTrailerModal('Way9Dexny3w', 'Dune: Part Two')"><i class="fa-solid fa-play"></i> Watch Trailer</button>
-          <button class="btn btn-outline" onclick="openFeaturedItem('m7')"><i class="fa-solid fa-circle-info"></i> More Info</button>
+      <img src="images/hero/dune-part-two-banner.jpg" alt="Dune: Part Two" class="slide-img">
+      <div class="slide-container">
+        <div class="slide-content">
+          <span class="slide-tag">Trending Movie</span>
+          <h1 class="slide-title">Dune: Part Two</h1>
+          <div class="slide-meta">
+            <span class="rating"><i class="fa-solid fa-star"></i> 8.9</span>
+            <span>2024</span>
+            <span>Sci-Fi / Action</span>
+          </div>
+          <p class="slide-desc">Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family.</p>
+          <div class="slide-actions">
+            <button class="btn btn-primary" onclick="CinePlay.openTrailerModal('Way9Dexny3w', 'Dune: Part Two')"><i class="fa-solid fa-play"></i> Watch Trailer</button>
+            <button class="btn btn-outline" onclick="openFeaturedItem('m7')"><i class="fa-solid fa-circle-info"></i> More Info</button>
+          </div>
         </div>
       </div>
     </div>
     <!-- Slide 2 -->
     <div class="slide">
-      <img src="https://images.unsplash.com/photo-1612287230202-1bf1d85d1bdf?q=80&w=1440&auto=format&fit=crop" alt="Elden Ring" class="slide-img">
-      <div class="slide-content">
-        <span class="slide-tag">Masterpiece Game</span>
-        <h1 class="slide-title">Elden Ring</h1>
-        <div class="slide-meta">
-          <span class="rating"><i class="fa-solid fa-star"></i> 9.6</span>
-          <span>2022</span>
-          <span>RPG / Action / Dark Fantasy</span>
-        </div>
-        <p class="slide-desc">In the Lands Between ruled by Queen Marika the Eternal, the Elden Ring has been shattered. The Tarnished must rise and become the Elden Lord.</p>
-        <div class="slide-actions">
-          <button class="btn btn-primary" onclick="CinePlay.openTrailerModal('E3Huy2cdih0', 'Elden Ring')"><i class="fa-solid fa-play"></i> Watch Trailer</button>
-          <button class="btn btn-outline" onclick="openFeaturedItem('g2')"><i class="fa-solid fa-circle-info"></i> More Info</button>
+      <img src="images/hero/elden-ring-banner.jpg" alt="Elden Ring" class="slide-img">
+      <div class="slide-container">
+        <div class="slide-content">
+          <span class="slide-tag">Masterpiece Game</span>
+          <h1 class="slide-title">Elden Ring</h1>
+          <div class="slide-meta">
+            <span class="rating"><i class="fa-solid fa-star"></i> 9.6</span>
+            <span>2022</span>
+            <span>RPG / Action / Dark Fantasy</span>
+          </div>
+          <p class="slide-desc">In the Lands Between ruled by Queen Marika the Eternal, the Elden Ring has been shattered. The Tarnished must rise and become the Elden Lord.</p>
+          <div class="slide-actions">
+            <button class="btn btn-primary" onclick="CinePlay.openTrailerModal('E3Huy2cdih0', 'Elden Ring')"><i class="fa-solid fa-play"></i> Watch Trailer</button>
+            <button class="btn btn-outline" onclick="openFeaturedItem('g2')"><i class="fa-solid fa-circle-info"></i> More Info</button>
+          </div>
         </div>
       </div>
     </div>
     <!-- Slide 3 -->
     <div class="slide">
-      <img src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1440&auto=format&fit=crop" alt="Interstellar" class="slide-img">
-      <div class="slide-content">
-        <span class="slide-tag">Must-Watch Classic</span>
-        <h1 class="slide-title">Interstellar</h1>
-        <div class="slide-meta">
-          <span class="rating"><i class="fa-solid fa-star"></i> 8.7</span>
-          <span>2014</span>
-          <span>Sci-Fi / Drama / Adventure</span>
-        </div>
-        <p class="slide-desc">When Earth becomes uninhabitable, a team of explorers travels through a wormhole in space in an attempt to ensure humanity's survival.</p>
-        <div class="slide-actions">
-          <button class="btn btn-primary" onclick="CinePlay.openTrailerModal('zSWdZVtXT7E', 'Interstellar')"><i class="fa-solid fa-play"></i> Watch Trailer</button>
-          <button class="btn btn-outline" onclick="openFeaturedItem('m3')"><i class="fa-solid fa-circle-info"></i> More Info</button>
+      <img src="images/hero/interstellar-banner.jpg" alt="Interstellar" class="slide-img">
+      <div class="slide-container">
+        <div class="slide-content">
+          <span class="slide-tag">Must-Watch Classic</span>
+          <h1 class="slide-title">Interstellar</h1>
+          <div class="slide-meta">
+            <span class="rating"><i class="fa-solid fa-star"></i> 8.7</span>
+            <span>2014</span>
+            <span>Sci-Fi / Drama / Adventure</span>
+          </div>
+          <p class="slide-desc">When Earth becomes uninhabitable, a team of explorers travels through a wormhole in space in an attempt to ensure humanity's survival.</p>
+          <div class="slide-actions">
+            <button class="btn btn-primary" onclick="CinePlay.openTrailerModal('zSWdZVtXT7E', 'Interstellar')"><i class="fa-solid fa-play"></i> Watch Trailer</button>
+            <button class="btn btn-outline" onclick="openFeaturedItem('m3')"><i class="fa-solid fa-circle-info"></i> More Info</button>
+          </div>
         </div>
       </div>
     </div>
@@ -289,8 +297,8 @@
   </footer>
 
   <!-- Scripts -->
-  <script src="js/data.js"></script>
-  <script src="js/app.js"></script>
+  <script src="js/data.js?v=3"></script>
+  <script src="js/app.js?v=3"></script>
   
   
 </body>
