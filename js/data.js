@@ -8,7 +8,8 @@ const moviesData = [
     year: 2010,
     runtime: 148,
     description: "A thief who steals corporate secrets through the use of dream-sharing technology is given the inverse task of planting an idea into the mind of a C.E.O.",
-    mood: ["Thought-provoking", "Action-packed", "Suspenseful"]
+    mood: ["Thought-provoking", "Action-packed", "Suspenseful"],
+    trailer: "YoHD9XEInc0"
   },
   {
     id: "m2",
@@ -19,7 +20,8 @@ const moviesData = [
     year: 2008,
     runtime: 152,
     description: "When the menace known as the Joker wreaks havoc and chaos on the people of Gotham, Batman must accept one of the greatest psychological and physical tests of his ability to fight injustice.",
-    mood: ["Action-packed", "Scary", "Thought-provoking"]
+    mood: ["Action-packed", "Scary", "Thought-provoking"],
+    trailer: "EXeTwQWrcwY"
   },
   {
     id: "m3",
@@ -30,7 +32,8 @@ const moviesData = [
     year: 2014,
     runtime: 169,
     description: "When Earth becomes uninhabitable, a team of explorers travels through a wormhole in space in an attempt to ensure humanity's survival.",
-    mood: ["Emotional", "Thought-provoking", "Relaxing"]
+    mood: ["Emotional", "Thought-provoking", "Relaxing"],
+    trailer: "zSWdZVtXT7E"
   },
   {
     id: "m4",
@@ -41,7 +44,8 @@ const moviesData = [
     year: 2001,
     runtime: 125,
     description: "During her family's move to the suburbs, a sullen 10-year-old girl wanders into a world ruled by gods, witches, and spirits, and where humans are changed into beasts.",
-    mood: ["Emotional", "Relaxing", "Thought-provoking"]
+    mood: ["Emotional", "Relaxing", "Thought-provoking"],
+    trailer: "ByXuk9QqQkk"
   },
   {
     id: "m5",
@@ -52,7 +56,8 @@ const moviesData = [
     year: 2019,
     runtime: 132,
     description: "Greed and class discrimination threaten the newly formed symbiotic relationship between the wealthy Park family and the destitute Kim clan.",
-    mood: ["Thought-provoking", "Suspenseful", "Emotional"]
+    mood: ["Thought-provoking", "Suspenseful", "Emotional"],
+    trailer: "5xH0HfJHsaY"
   },
   {
     id: "m6",
@@ -63,7 +68,8 @@ const moviesData = [
     year: 2014,
     runtime: 106,
     description: "A promising young drummer enrolls at a cut-throat music conservatory where his dreams of greatness are mentored by an instructor who will stop at nothing to realize a student's potential.",
-    mood: ["Emotional", "Suspenseful", "Action-packed"]
+    mood: ["Emotional", "Suspenseful", "Action-packed"],
+    trailer: "7d_jQyGldUs"
   },
   {
     id: "m7",
@@ -74,7 +80,8 @@ const moviesData = [
     year: 2024,
     runtime: 166,
     description: "Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family.",
-    mood: ["Action-packed", "Thought-provoking", "Suspenseful"]
+    mood: ["Action-packed", "Thought-provoking", "Suspenseful"],
+    trailer: "Way9Dexny3w"
   },
   {
     id: "m8",
@@ -85,7 +92,8 @@ const moviesData = [
     year: 2018,
     runtime: 117,
     description: "Teen Miles Morales becomes the Spider-Man of his universe and must join with five spider-powered individuals from other dimensions to stop a threat for all realities.",
-    mood: ["Action-packed", "Relaxing", "Emotional"]
+    mood: ["Action-packed", "Relaxing", "Emotional"],
+    trailer: "g4Hbz2jGDlQ"
   },
   {
     id: "m9",
@@ -96,7 +104,8 @@ const moviesData = [
     year: 2017,
     runtime: 104,
     description: "A young African-American visits his white girlfriend's parents for the weekend, where his simmering uneasiness about their reception eventually reaches a boiling point.",
-    mood: ["Scary", "Suspenseful", "Thought-provoking"]
+    mood: ["Scary", "Suspenseful", "Thought-provoking"],
+    trailer: "KyB2754ECE0"
   },
   {
     id: "m10",
@@ -107,7 +116,8 @@ const moviesData = [
     year: 2017,
     runtime: 164,
     description: "A new blade runner, LAPD Officer K, unearths a long-buried secret that has the potential to plunge what's left of society into chaos.",
-    mood: ["Thought-provoking", "Relaxing", "Suspenseful"]
+    mood: ["Thought-provoking", "Relaxing", "Suspenseful"],
+    trailer: "gCcx85zUdBc"
   },
   {
     id: "m11",
@@ -118,7 +128,8 @@ const moviesData = [
     year: 1994,
     runtime: 142,
     description: "Over the course of several years, two convicts form a friendship, seeking consolation and, eventually, redemption through basic compassion.",
-    mood: ["Emotional", "Thought-provoking", "Relaxing"]
+    mood: ["Emotional", "Thought-provoking", "Relaxing"],
+    trailer: "PLl99DlL6b4"
   },
   {
     id: "m12",
@@ -129,7 +140,8 @@ const moviesData = [
     year: 1994,
     runtime: 154,
     description: "The lives of two mob hitmen, a boxer, a gangster and his wife, and a pair of diner bandits intertwine in four tales of violence and redemption.",
-    mood: ["Action-packed", "Thought-provoking", "Suspenseful"]
+    mood: ["Action-packed", "Thought-provoking", "Suspenseful"],
+    trailer: "s7EdQ4FqbhY"
   },
   {
     id: "m13",
@@ -140,7 +152,8 @@ const moviesData = [
     year: 2015,
     runtime: 120,
     description: "In a post-apocalyptic wasteland, a woman rebels against a tyrannical ruler in search for her homeland with the aid of a group of female prisoners, a psychotic worshiper, and a drifter named Max.",
-    mood: ["Action-packed", "Suspenseful", "Emotional"]
+    mood: ["Action-packed", "Suspenseful", "Emotional"],
+    trailer: "hEJnMQG9ld8"
   },
   {
     id: "m14",
@@ -151,7 +164,8 @@ const moviesData = [
     year: 2016,
     runtime: 128,
     description: "While navigating their careers in Los Angeles, a pianist and an actress fall in love while attempting to reconcile their aspirations for the future.",
-    mood: ["Emotional", "Relaxing", "Thought-provoking"]
+    mood: ["Emotional", "Relaxing", "Thought-provoking"],
+    trailer: "0pdqf4P9MB8"
   },
   {
     id: "m15",
@@ -162,7 +176,8 @@ const moviesData = [
     year: 1999,
     runtime: 136,
     description: "When a beautiful stranger leads computer hacker Neo to a forbidding underworld, he discovers the shocking truth--the life he knows is the elaborate deception of an evil cyber-intelligence.",
-    mood: ["Action-packed", "Thought-provoking", "Suspenseful"]
+    mood: ["Action-packed", "Thought-provoking", "Suspenseful"],
+    trailer: "vKQi3bBA1y8"
   },
   {
     id: "m16",
@@ -173,7 +188,8 @@ const moviesData = [
     year: 2022,
     runtime: 192,
     description: "Jake Sully lives with his newfound family formed on the extrasolar moon Pandora. Once a familiar threat returns to finish what was previously started, Jake must work with Neytiri and the army of the Na'vi race to protect their home.",
-    mood: ["Action-packed", "Emotional", "Relaxing"]
+    mood: ["Action-packed", "Emotional", "Relaxing"],
+    trailer: "d9MyW72ELq0"
   },
   {
     id: "m17",
@@ -184,7 +200,8 @@ const moviesData = [
     year: 2019,
     runtime: 122,
     description: "A mentally troubled stand-up comedian embarks on a downward spiral that leads to the creation of an iconic villain in a gritty, realistic Gotham City.",
-    mood: ["Emotional", "Thought-provoking", "Scary"]
+    mood: ["Emotional", "Thought-provoking", "Scary"],
+    trailer: "zAGVQLHvwOY"
   },
   {
     id: "m18",
@@ -195,7 +212,8 @@ const moviesData = [
     year: 2018,
     runtime: 90,
     description: "A family struggles for survival in a world where most humans have been killed by blind but noise-sensitive creatures. They are forced to communicate only in sign language to keep the creatures at bay.",
-    mood: ["Scary", "Suspenseful", "Emotional"]
+    mood: ["Scary", "Suspenseful", "Emotional"],
+    trailer: "WR7cc5t7tv8"
   },
   {
     id: "m19",
@@ -206,7 +224,8 @@ const moviesData = [
     year: 2000,
     runtime: 155,
     description: "A former Roman General sets out to exact vengeance against the corrupt emperor who murdered his family and sent him into slavery.",
-    mood: ["Action-packed", "Emotional", "Thought-provoking"]
+    mood: ["Action-packed", "Emotional", "Thought-provoking"],
+    trailer: "owK1qxDselE"
   },
   {
     id: "m20",
@@ -217,7 +236,8 @@ const moviesData = [
     year: 2016,
     runtime: 106,
     description: "Two strangers find themselves linked in a bizarre way. When a connection is formed, will distance be the only thing to keep them apart?",
-    mood: ["Emotional", "Relaxing", "Thought-provoking"]
+    mood: ["Emotional", "Relaxing", "Thought-provoking"],
+    trailer: "3KR8_M-G9pA"
   },
   {
     id: "m21",
@@ -228,7 +248,8 @@ const moviesData = [
     year: 2022,
     runtime: 139,
     description: "A middle-aged Chinese immigrant is swept up into an insane adventure in which she alone can save existence by exploring other universes and connecting with the lives she could have led.",
-    mood: ["Thought-provoking", "Action-packed", "Emotional"]
+    mood: ["Thought-provoking", "Action-packed", "Emotional"],
+    trailer: "wxN1T1uxQ2g"
   }
 ];
 
@@ -242,7 +263,9 @@ const gamesData = [
     rating: 9.7,
     year: 2015,
     description: "Geralt of Rivia, a monster hunter, embarks on a quest to find his adoptive daughter Ciri, who is being pursued by the Wild Hunt.",
-    mood: ["Action-packed", "Emotional", "Thought-provoking"]
+    mood: ["Action-packed", "Emotional", "Thought-provoking"],
+    trailer: "c0i88t0KxWY",
+    steamUrl: "https://store.steampowered.com/app/292030/The_Witcher_3_Wild_Hunt/"
   },
   {
     id: "g2",
@@ -253,7 +276,9 @@ const gamesData = [
     rating: 9.6,
     year: 2022,
     description: "In the Lands Between ruled by Queen Marika the Eternal, the Elden Ring has been shattered. The Tarnished must rise and become the Elden Lord.",
-    mood: ["Action-packed", "Scary", "Thought-provoking"]
+    mood: ["Action-packed", "Scary", "Thought-provoking"],
+    trailer: "E3Huy2hyGPA",
+    steamUrl: "https://store.steampowered.com/app/1245620/ELDEN_RING/"
   },
   {
     id: "g3",
@@ -264,7 +289,9 @@ const gamesData = [
     rating: 9.8,
     year: 2018,
     description: "Amidst the decline of the Wild West, outlaw Arthur Morgan and the Van der Linde gang struggle to survive against government forces and rival gangs.",
-    mood: ["Emotional", "Thought-provoking", "Action-packed"]
+    mood: ["Emotional", "Thought-provoking", "Action-packed"],
+    trailer: "EAwWPadFs1A",
+    steamUrl: "https://store.steampowered.com/app/1174180/Red_Dead_Redemption_2/"
   },
   {
     id: "g4",
@@ -275,7 +302,9 @@ const gamesData = [
     rating: 9.5,
     year: 2017,
     description: "After a 100-year slumber, Link awakens in a ruined Hyrule. He must regain his memories and defeat Calamity Ganon to save Zelda.",
-    mood: ["Relaxing", "Thought-provoking", "Action-packed"]
+    mood: ["Relaxing", "Thought-provoking", "Action-packed"],
+    trailer: "1rPxiXXxaeE",
+    steamUrl: "https://www.nintendo.com/store/products/the-legend-of-zelda-breath-of-the-wild-switch/"
   },
   {
     id: "g5",
@@ -286,7 +315,9 @@ const gamesData = [
     rating: 8.6,
     year: 2020,
     description: "V is a mercenary outlaw fighting through the dystopian metropolis of Night City, seeking a one-of-a-kind implant that is the key to immortality.",
-    mood: ["Action-packed", "Thought-provoking", "Suspenseful"]
+    mood: ["Action-packed", "Thought-provoking", "Suspenseful"],
+    trailer: "LembwKdo1Pc",
+    steamUrl: "https://store.steampowered.com/app/1091500/Cyberpunk_2077/"
   },
   {
     id: "g6",
@@ -297,7 +328,9 @@ const gamesData = [
     rating: 9.5,
     year: 2022,
     description: "Kratos and his teenage son Atreus travel through the Nine Realms of Norse mythology as Fimbulwinter prepares for Ragnarök.",
-    mood: ["Action-packed", "Emotional", "Thought-provoking"]
+    mood: ["Action-packed", "Emotional", "Thought-provoking"],
+    trailer: "g1wr0m0rQRE",
+    steamUrl: "https://store.steampowered.com/app/2322010/God_of_War_Ragnarok/"
   },
   {
     id: "g7",
@@ -308,7 +341,9 @@ const gamesData = [
     rating: 9.3,
     year: 2020,
     description: "As the Prince of the Underworld, Zagreus attempts to battle his way out of the domain of his overbearing father, Hades.",
-    mood: ["Action-packed", "Relaxing", "Emotional"]
+    mood: ["Action-packed", "Relaxing", "Emotional"],
+    trailer: "mD8x5xLHRrY",
+    steamUrl: "https://store.steampowered.com/app/1145360/Hades/"
   },
   {
     id: "g8",
@@ -319,7 +354,9 @@ const gamesData = [
     rating: 9.0,
     year: 2011,
     description: "Explore infinite blocky worlds, craft items, build structures, and survive monsters in this ultimate creative and survival experience.",
-    mood: ["Relaxing", "Thought-provoking"]
+    mood: ["Relaxing", "Thought-provoking"],
+    trailer: "MmB9b5njVbA",
+    steamUrl: "https://www.minecraft.net/"
   },
   {
     id: "g9",
@@ -330,7 +367,9 @@ const gamesData = [
     rating: 9.8,
     year: 2011,
     description: "Trapped in the Aperture Science facility, Chell must navigate mind-bending portal puzzles and outsmart the rogue AI GLaDOS and the bumbling Wheatley.",
-    mood: ["Thought-provoking", "Relaxing", "Suspenseful"]
+    mood: ["Thought-provoking", "Relaxing", "Suspenseful"],
+    trailer: "tax4e4hBBZc",
+    steamUrl: "https://store.steampowered.com/app/620/Portal_2/"
   },
   {
     id: "g10",
@@ -341,7 +380,9 @@ const gamesData = [
     rating: 9.4,
     year: 2023,
     description: "Six years after the Raccoon City disaster, agent Leon S. Kennedy is sent to rescue the US President's kidnapped daughter from a secluded European village.",
-    mood: ["Scary", "Suspenseful", "Action-packed"]
+    mood: ["Scary", "Suspenseful", "Action-packed"],
+    trailer: "cM685t211eU",
+    steamUrl: "https://store.steampowered.com/app/2050650/Resident_Evil_4/"
   },
   {
     id: "g11",
@@ -352,7 +393,9 @@ const gamesData = [
     rating: 9.4,
     year: 2017,
     description: "Descend into the ruined kingdom of Hallownest, a vast subterranean world filled with bugs, ancient secrets, and challenging boss battles.",
-    mood: ["Relaxing", "Emotional", "Thought-provoking"]
+    mood: ["Relaxing", "Emotional", "Thought-provoking"],
+    trailer: "UAO2urG23S4",
+    steamUrl: "https://store.steampowered.com/app/367520/Hollow_Knight/"
   },
   {
     id: "g12",
@@ -363,7 +406,9 @@ const gamesData = [
     rating: 9.5,
     year: 2013,
     description: "Three very different criminals team up to execute a series of daring and dangerous heists across the sprawling metropolis of Los Santos.",
-    mood: ["Action-packed", "Suspenseful"]
+    mood: ["Action-packed", "Suspenseful"],
+    trailer: "QkkoHAzJNUs",
+    steamUrl: "https://store.steampowered.com/app/271590/Grand_Theft_Auto_V/"
   },
   {
     id: "g13",
@@ -374,7 +419,9 @@ const gamesData = [
     rating: 9.2,
     year: 2023,
     description: "Spider-Men Peter Parker and Miles Morales face ultimate tests of strength as they fight to save New York City from Venom and Kraven the Hunter.",
-    mood: ["Action-packed", "Emotional", "Suspenseful"]
+    mood: ["Action-packed", "Emotional", "Suspenseful"],
+    trailer: "qD-pQG9QzP0",
+    steamUrl: "https://store.steampowered.com/app/2653060/Marvels_SpiderMan_2/"
   },
   {
     id: "g14",
@@ -385,7 +432,9 @@ const gamesData = [
     rating: 9.8,
     year: 2023,
     description: "Gather your party and return to the Forgotten Realms in a tale of fellowship, betrayal, sacrifice, and the lure of absolute power.",
-    mood: ["Thought-provoking", "Emotional", "Action-packed"]
+    mood: ["Thought-provoking", "Emotional", "Action-packed"],
+    trailer: "1T22SZgMx9c",
+    steamUrl: "https://store.steampowered.com/app/1086940/Baldurs_Gate_3/"
   },
   {
     id: "g15",
@@ -396,7 +445,9 @@ const gamesData = [
     rating: 9.2,
     year: 2016,
     description: "You've inherited your grandfather's old farm plot in Stardew Valley. Armed with hand-me-down tools and a few coins, you set out to build a new life.",
-    mood: ["Relaxing", "Emotional"]
+    mood: ["Relaxing", "Emotional"],
+    trailer: "ot7uXNQsk8s",
+    steamUrl: "https://store.steampowered.com/app/413150/Stardew_Valley/"
   },
   {
     id: "g16",
@@ -407,7 +458,9 @@ const gamesData = [
     rating: 9.1,
     year: 2023,
     description: "An FBI agent investigating ritualistic murders in Bright Falls and a trapped writer attempting to write himself out of a dark dimension find their realities intertwined.",
-    mood: ["Scary", "Suspenseful", "Thought-provoking"]
+    mood: ["Scary", "Suspenseful", "Thought-provoking"],
+    trailer: "q1v5l8yZ-e0",
+    steamUrl: "https://store.epicgames.com/p/alan-wake-2"
   },
   {
     id: "g17",
@@ -418,7 +471,9 @@ const gamesData = [
     rating: 9.4,
     year: 2017,
     description: "Join Mario on a massive, globe-trotting 3D adventure using his new ally Cappy to rescue Princess Peach from Bowser's wedding plans.",
-    mood: ["Relaxing", "Action-packed"]
+    mood: ["Relaxing", "Action-packed"],
+    trailer: "wGQHQc_3ycE",
+    steamUrl: "https://www.nintendo.com/store/products/super-mario-odyssey-switch/"
   },
   {
     id: "g18",
@@ -429,7 +484,9 @@ const gamesData = [
     rating: 9.6,
     year: 2022,
     description: "In a ravaged civilization where infected and hardened survivors run rampant, Joel, a weary protagonist, is hired to smuggle 14-year-old Ellie out of a military quarantine zone.",
-    mood: ["Emotional", "Action-packed", "Suspenseful"]
+    mood: ["Emotional", "Action-packed", "Suspenseful"],
+    trailer: "WxjeV10H1F0",
+    steamUrl: "https://store.steampowered.com/app/1888590/The_Last_of_Us_Part_I/"
   },
   {
     id: "g19",
@@ -440,7 +497,9 @@ const gamesData = [
     rating: 9.5,
     year: 2019,
     description: "Transferring to a Tokyo high school, Joker discovers supernatural powers and forms the Phantom Thieves of Hearts to reform corrupt adults.",
-    mood: ["Thought-provoking", "Relaxing", "Emotional"]
+    mood: ["Thought-provoking", "Relaxing", "Emotional"],
+    trailer: "QnDvGep3XLY",
+    steamUrl: "https://store.steampowered.com/app/1687950/Persona_5_Royal/"
   },
   {
     id: "g20",
@@ -451,7 +510,9 @@ const gamesData = [
     rating: 9.4,
     year: 2019,
     description: "You are the newest recruit of Outer Wilds Ventures, a fledgling space program searching for answers in a strange, constantly evolving solar system trapped in an infinite time loop.",
-    mood: ["Thought-provoking", "Relaxing", "Emotional"]
+    mood: ["Thought-provoking", "Relaxing", "Emotional"],
+    trailer: "d5ZaXF19XmU",
+    steamUrl: "https://store.steampowered.com/app/753640/Outer_Wilds/"
   },
   {
     id: "g21",
@@ -462,7 +523,9 @@ const gamesData = [
     rating: 9.6,
     year: 2019,
     description: "You're a detective with a unique skill system at your disposal and a whole city block to carve your path across. Interrogate unforgettable characters or take bribes.",
-    mood: ["Thought-provoking", "Emotional", "Relaxing"]
+    mood: ["Thought-provoking", "Emotional", "Relaxing"],
+    trailer: "Pq5g7-7-bE0",
+    steamUrl: "https://store.steampowered.com/app/632470/Disco_Elysium__The_Final_Cut/"
   }
 ];
 

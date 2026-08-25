@@ -321,6 +321,9 @@ function getFavorites() {
 function saveFavorites(favorites) {
   localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites));
   window.dispatchEvent(new Event("favoritesChanged"));
+  if (window.CinePlayAuth && window.CinePlayAuth.isLoggedIn()) {
+    window.CinePlayAuth.syncFavoritesToCloud(favorites);
+  }
 }
 
 function toggleFavorite(itemId, itemType) {
@@ -437,8 +440,40 @@ function openDetailsModal(item, type) {
     </button>
   `;
 
-  document.getElementById("modal-play-btn").addEventListener("click", () => {
-    showToast(type === "movie" ? "Opening trailer simulator..." : "Launching steam link...", "fa-solid fa-circle-play");
+  let showingTrailer = false;
+  const playBtn = document.getElementById("modal-play-btn");
+  playBtn.addEventListener("click", () => {
+    if (type === "movie") {
+      if (item.trailer) {
+        showingTrailer = !showingTrailer;
+        if (showingTrailer) {
+          posterContainer.innerHTML = `
+            <div class="iframe-container" style="width: 100%; height: 100%; min-height: 250px; position: relative;">
+              <iframe src="https://www.youtube.com/embed/${item.trailer}?autoplay=1" 
+                      title="${item.title} Trailer" 
+                      frameborder="0" 
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                      allowfullscreen 
+                      style="position: absolute; top:0; left:0; width:100%; height:100%; border:none; border-radius: 12px;">
+              </iframe>
+            </div>
+          `;
+          playBtn.innerHTML = `<i class="fa-solid fa-image"></i> Show Poster`;
+        } else {
+          posterContainer.innerHTML = "";
+          posterContainer.appendChild(img);
+          playBtn.innerHTML = `<i class="fa-solid fa-play"></i> Watch Trailer`;
+        }
+      } else {
+        window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(item.title + ' official trailer')}`, '_blank');
+      }
+    } else {
+      if (item.steamUrl) {
+        window.open(item.steamUrl, '_blank');
+      } else {
+        window.open(`https://store.steampowered.com/search/?term=${encodeURIComponent(item.title)}`, '_blank');
+      }
+    }
   });
 
   const favBtn = document.getElementById("modal-fav-btn");
@@ -462,6 +497,11 @@ function closeModal() {
   if (!globalModal) return;
   globalModal.classList.remove("active");
   document.body.style.overflow = "";
+  // Stop trailer playing audio immediately on modal close
+  const posterContainer = document.getElementById("modal-poster-container");
+  if (posterContainer) {
+    posterContainer.innerHTML = "";
+  }
 }
 
 /* ==========================================================================
