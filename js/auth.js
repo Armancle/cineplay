@@ -16,13 +16,13 @@ function initAuthUI() {
   authContainers.forEach(container => {
     container.innerHTML = `
       <div class="auth-wrapper">
-        <button id="nav-login-btn" class="nav-auth-btn btn btn-outline">
+        <button id="nav-login-btn" class="nav-auth-btn btn btn-outline" aria-label="Sign In with Google">
           <i class="fa-brands fa-google"></i> <span>Login</span>
         </button>
         <div id="nav-user-badge" class="user-profile" style="display: none;">
           <img id="nav-user-avatar" class="user-avatar" src="" alt="User Avatar">
           <span id="nav-user-name" class="user-name"></span>
-          <button id="nav-logout-btn" class="logout-btn" title="Logout">
+          <button id="nav-logout-btn" class="logout-btn" title="Logout" aria-label="Logout">
             <i class="fa-solid fa-right-from-bracket"></i>
           </button>
         </div>
@@ -41,6 +41,30 @@ function initAuthUI() {
 // Setup state listeners for Firebase or Mock Auth
 function setupAuthListeners() {
   if (window.useFirebase) {
+    // Ensure persistence is set to LOCAL
+    try {
+      window.firebaseAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+    } catch (e) {
+      console.warn("Persistence setting error:", e);
+    }
+
+    // Handle return from redirect (crucial for mobile devices)
+    window.firebaseAuth.getRedirectResult()
+      .then(async (result) => {
+        if (result && result.user) {
+          currentUser = result.user;
+          updateUIForLoggedInUser(result.user.displayName, result.user.photoURL || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=150&auto=format&fit=crop");
+          await syncFavoritesOnLogin(result.user.uid);
+          window.CinePlay.showToast(`Welcome back, ${result.user.displayName}!`, "fa-solid fa-circle-user");
+        }
+      })
+      .catch((error) => {
+        if (error.code && error.code !== "auth/null-user" && error.code !== "auth/credential-already-in-use") {
+          console.warn("Redirect result error:", error);
+        }
+      });
+
+    // Listen to continuous auth state changes
     window.firebaseAuth.onAuthStateChanged(async (user) => {
       if (user) {
         currentUser = user;
@@ -80,7 +104,7 @@ function updateUIForLoggedInUser(name, photoURL) {
   loginBtns.forEach(btn => btn.style.display = "none");
   userBadges.forEach(badge => badge.style.display = "flex");
   avatars.forEach(avatar => avatar.src = photoURL);
-  names.forEach(n => n.textContent = name.split(" ")[0]); // Show first name
+  names.forEach(n => n.textContent = name ? name.split(" ")[0] : "User");
 }
 
 // Update UI to logged-out state
@@ -96,13 +120,34 @@ function updateUIForLoggedOutUser() {
 function login() {
   if (window.useFirebase) {
     const provider = new firebase.auth.GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+
+    // Try popup first (fastest on desktop and supported mobile browsers)
     window.firebaseAuth.signInWithPopup(provider)
       .then((result) => {
-        window.CinePlay.showToast(`Welcome back, ${result.user.displayName}!`, "fa-solid fa-circle-user");
+        if (result && result.user) {
+          window.CinePlay.showToast(`Welcome back, ${result.user.displayName}!`, "fa-solid fa-circle-user");
+        }
       })
       .catch((error) => {
-        console.error("Firebase Login Error", error);
-        window.CinePlay.showToast("Login failed. Try again.", "fa-solid fa-circle-exclamation");
+        console.error("Firebase Login Error:", error);
+        
+        // If popup is blocked or fails on mobile browser due to popup restrictions, fallback to redirect
+        if (
+          error.code === "auth/popup-blocked" || 
+          error.code === "auth/cancelled-popup-request" ||
+          error.code === "auth/popup-closed-by-user"
+        ) {
+          window.CinePlay.showToast("Opening secure Google Sign-In...", "fa-brands fa-google");
+          window.firebaseAuth.signInWithRedirect(provider).catch(e => {
+            console.error("Redirect fallback error:", e);
+            window.CinePlay.showToast("Login failed. Check authorized domains in Firebase.", "fa-solid fa-circle-exclamation");
+          });
+        } else if (error.code === "auth/unauthorized-domain") {
+          window.CinePlay.showToast("Domain not authorized in Firebase Console Settings.", "fa-solid fa-triangle-exclamation");
+        } else {
+          window.CinePlay.showToast("Login issue: " + (error.message || "Please try again"), "fa-solid fa-circle-exclamation");
+        }
       });
   } else {
     showMockAuthPopup();

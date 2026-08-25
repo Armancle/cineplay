@@ -264,4 +264,54 @@
     flex-direction: column;
     gap: 10px;
   }
+
+  /* Nav actions and auth on mobile */
+  .nav-actions {
+    gap: 8px;
+  }
+
+  .nav-auth-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  .user-profile {
+    padding: 4px 8px;
+    gap: 6px;
+  }
+
+  .user-name {
+    display: none !important;
+  }
+
+  .floating-match-btn {
+    bottom: 20px;
+    right: 15px;
+    padding: 10px 16px;
+    font-size: 12px;
+  }
+
+  .back-to-top {
+    bottom: 75px;
+    right: 15px;
+    width: 38px;
+    height: 38px;
+    font-size: 14px;
+  }
 }
+
+@media (max-width: 400px) {
+  .nav-auth-btn span {
+    display: none;
+  }
+
+  .nav-auth-btn {
+    padding: 8px 10px;
+    border-radius: 50%;
+  }
+
+  .logo {
+    font-size: 20px;
+  }
+}
+
