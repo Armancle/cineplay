@@ -717,9 +717,153 @@ header:not(.sticky) .nav-auth-btn {
   display: flex;
   flex-wrap: wrap;
   gap: 15px;
-  margin-bottom: 40px;
-  padding: 20px;
+  margin-bottom: 30px;
+  padding: 24px 28px;
   align-items: center;
+  border-radius: 20px;
+  border: 1px solid var(--border-color);
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.advanced-filter-drawer {
+  display: none;
+  flex-direction: column;
+  gap: 22px;
+  padding: 30px;
+  margin-bottom: 30px;
+  border-radius: 24px;
+  border: 1px solid rgba(229, 9, 20, 0.35);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 30px rgba(229, 9, 20, 0.1);
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+[data-theme="light"] .advanced-filter-drawer {
+  background: #ffffff;
+  border: 1px solid rgba(229, 9, 20, 0.25);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.08);
+}
+
+.filter-drawer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 15px;
+}
+
+.filter-drawer-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.filter-grid-layout {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 18px;
+  width: 100%;
+}
+
+.filter-card-block {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color 0.25s ease, background 0.25s ease;
+}
+
+[data-theme="light"] .filter-card-block {
+  background: #f9fafb;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.filter-card-block:hover {
+  border-color: rgba(229, 9, 20, 0.3);
+}
+
+.filter-field-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.filter-select-styled {
+  background: var(--bg-primary);
+  border: 1.5px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 11px 16px;
+  border-radius: 12px;
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  width: 100%;
+  outline: none;
+  transition: all 0.25s ease;
+}
+
+.filter-select-styled:focus, .filter-select-styled:hover {
+  border-color: var(--accent-red);
+  box-shadow: 0 0 12px rgba(229, 9, 20, 0.2);
+}
+
+[data-theme="light"] .filter-select-styled {
+  background: #ffffff;
+  border: 1.5px solid rgba(0, 0, 0, 0.12);
+  color: var(--text-primary);
+}
+
+.rating-badge-preview {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(250, 204, 21, 0.15);
+  color: #facc15;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 12px;
+  margin-left: auto;
+}
+
+.filter-genre-section {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  padding: 18px;
+}
+
+[data-theme="light"] .filter-genre-section {
+  background: #f9fafb;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.filter-drawer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--border-color);
+  padding-top: 18px;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.filter-match-count {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  font-weight: 600;
 }
 
 .filter-group {
@@ -765,10 +909,25 @@ header:not(.sticky) .nav-auth-btn {
   border-radius: 20px;
   font-size: 13px;
   font-weight: 500;
+  cursor: pointer;
   transition: all var(--transition-speed) ease;
 }
 
 .genre-pill:hover, .genre-pill.active {
+  background: var(--accent-red);
+  color: #fff;
+  border-color: var(--accent-red);
+  box-shadow: 0 4px 15px rgba(229, 9, 20, 0.35);
+  transform: translateY(-1px);
+}
+
+[data-theme="light"] .genre-pill {
+  background: #f3f4f6;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  color: #4b5563;
+}
+
+[data-theme="light"] .genre-pill:hover, [data-theme="light"] .genre-pill.active {
   background: var(--accent-red);
   color: #fff;
   border-color: var(--accent-red);

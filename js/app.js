@@ -113,6 +113,10 @@ function getRecommendations({ contentType = "movie", mood = "Action-packed", gen
     // 1. Mood match (Weight: 40 points)
     if (item.mood && item.mood.includes(mood)) {
       score += 40;
+    } else if (mood === "Romantic" && ((item.genre && item.genre.includes("Romance")) || (item.mood && item.mood.includes("Emotional")))) {
+      score += 38;
+    } else if (mood === "Comedy" && ((item.genre && item.genre.includes("Comedy")) || (item.mood && item.mood.includes("Relaxing")))) {
+      score += 38;
     } else if (item.mood && item.mood.some(m => m.toLowerCase().includes(mood.toLowerCase()))) {
       score += 25;
     }

@@ -154,12 +154,16 @@ function populateQuizGenreOptions() {
   const movieGenres = [
     { name: "Sci-Fi", icon: "fa-rocket" },
     { name: "Action", icon: "fa-burst" },
+    { name: "Romance", icon: "fa-heart" },
     { name: "Adventure", icon: "fa-compass" },
     { name: "Drama", icon: "fa-masks-theater" },
+    { name: "Comedy", icon: "fa-face-laugh-squint" },
     { name: "Thriller", icon: "fa-skull" },
+    { name: "Mystery", icon: "fa-magnifying-glass" },
+    { name: "Crime", icon: "fa-handcuffs" },
+    { name: "Fantasy", icon: "fa-dragon" },
     { name: "Animation", icon: "fa-palette" },
     { name: "Horror", icon: "fa-ghost" },
-    { name: "Comedy", icon: "fa-face-laugh-squint" },
     { name: "Music", icon: "fa-music" }
   ];
 
@@ -168,8 +172,11 @@ function populateQuizGenreOptions() {
     { name: "Action", icon: "fa-shield-halved" },
     { name: "Adventure", icon: "fa-map-location-dot" },
     { name: "Indie", icon: "fa-seedling" },
-    { name: "Horror", icon: "fa-circle-exclamation" },
+    { name: "Horror", icon: "fa-ghost" },
     { name: "Sci-Fi", icon: "fa-user-astronaut" },
+    { name: "Metroidvania", icon: "fa-compass" },
+    { name: "Roguelike", icon: "fa-dungeon" },
+    { name: "Superhero", icon: "fa-mask" },
     { name: "Puzzle", icon: "fa-puzzle-piece" },
     { name: "Sandbox", icon: "fa-cube" }
   ];

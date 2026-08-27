@@ -12,6 +12,8 @@ let sortBy = "popularity-desc";
 let minRating = 0;
 let selectedLanguage = "All";
 let selectedCountry = "All";
+let selectedEra = "All";
+let selectedProvider = "All";
 let selectedActor = "";
 let selectedDirector = "";
 let currentPage = 1;
@@ -22,6 +24,8 @@ function initMoviesPage() {
   const sortSelect = document.getElementById("movie-sort");
   const langSelect = document.getElementById("movie-language");
   const countrySelect = document.getElementById("movie-country");
+  const eraSelect = document.getElementById("movie-era");
+  const providerSelect = document.getElementById("movie-provider");
   const ratingSlider = document.getElementById("movie-min-rating");
   const ratingDisplay = document.getElementById("rating-val-display");
   const genresContainer = document.getElementById("genres-container");
@@ -79,7 +83,8 @@ function initMoviesPage() {
   // Rating slider live update
   if (ratingSlider && ratingDisplay) {
     ratingSlider.addEventListener("input", (e) => {
-      ratingDisplay.textContent = parseFloat(e.target.value).toFixed(1);
+      const val = parseFloat(e.target.value).toFixed(1);
+      ratingDisplay.innerHTML = `<i class="fa-solid fa-star"></i> ${val}+`;
       minRating = parseFloat(e.target.value);
     });
   }
@@ -99,6 +104,20 @@ function initMoviesPage() {
     });
   }
 
+  if (eraSelect) {
+    eraSelect.addEventListener("change", (e) => {
+      selectedEra = e.target.value;
+      loadMoviesGrid(true);
+    });
+  }
+
+  if (providerSelect) {
+    providerSelect.addEventListener("change", (e) => {
+      selectedProvider = e.target.value;
+      loadMoviesGrid(true);
+    });
+  }
+
   if (genresContainer) {
     genresContainer.addEventListener("click", (e) => {
       const pill = e.target.closest(".genre-pill");
@@ -114,26 +133,33 @@ function initMoviesPage() {
     applyBtn.addEventListener("click", () => {
       if (langSelect) selectedLanguage = langSelect.value;
       if (countrySelect) selectedCountry = countrySelect.value;
+      if (eraSelect) selectedEra = eraSelect.value;
+      if (providerSelect) selectedProvider = providerSelect.value;
       loadMoviesGrid(true);
       if (filterDrawer) filterDrawer.style.display = "none";
+      if (window.CinePlay.showToast) window.CinePlay.showToast("Filters applied successfully!", "fa-check");
     });
   }
 
   if (resetBtn) {
     resetBtn.addEventListener("click", () => {
       if (searchInput) searchInput.value = "";
-      if (sortSelect) sortSelect.value = "rating-desc";
+      if (sortSelect) sortSelect.value = "popularity-desc";
       if (langSelect) langSelect.value = "All";
       if (countrySelect) countrySelect.value = "All";
+      if (eraSelect) eraSelect.value = "All";
+      if (providerSelect) providerSelect.value = "All";
       if (ratingSlider) ratingSlider.value = 0;
-      if (ratingDisplay) ratingDisplay.textContent = "0.0";
+      if (ratingDisplay) ratingDisplay.innerHTML = `<i class="fa-solid fa-star"></i> 0.0+`;
       
       searchQuery = "";
-      sortBy = "rating-desc";
+      sortBy = "popularity-desc";
       activeGenre = "All";
       minRating = 0;
       selectedLanguage = "All";
       selectedCountry = "All";
+      selectedEra = "All";
+      selectedProvider = "All";
       selectedActor = "";
       selectedDirector = "";
 
@@ -198,6 +224,8 @@ function initMoviesPage() {
 
 async function loadMoviesGrid(resetPage = true) {
   const loadMoreBtn = document.getElementById("btn-load-more");
+  const countText = document.getElementById("filter-match-count-text");
+
   if (resetPage) {
     currentPage = 1;
     showGridSkeletons();
@@ -218,16 +246,66 @@ async function loadMoviesGrid(resetPage = true) {
 
     let results = response.results;
 
-    // Apply additional client-side filters
+    // Apply client-side filters
     if (minRating > 0) {
       results = results.filter(m => m.rating >= minRating);
     }
     if (selectedLanguage !== "All") {
-      results = results.filter(m => m.language === selectedLanguage);
+      results = results.filter(m => (m.language || "").toLowerCase() === selectedLanguage.toLowerCase());
     }
     if (selectedCountry !== "All") {
-      results = results.filter(m => m.country === selectedCountry);
+      results = results.filter(m => (m.country || "").toLowerCase() === selectedCountry.toLowerCase());
     }
+    if (selectedEra !== "All") {
+      results = results.filter(m => {
+        const y = parseInt(m.year);
+        if (selectedEra === "2024") return y >= 2024;
+        if (selectedEra === "2020-2023") return y >= 2020 && y <= 2023;
+        if (selectedEra === "2010-2019") return y >= 2010 && y <= 2019;
+        if (selectedEra === "2000-2009") return y >= 2000 && y <= 2009;
+        if (selectedEra === "1990-1999") return y < 2000;
+        return true;
+      });
+    }
+    if (selectedProvider !== "All") {
+      results = results.filter(m => {
+        if (m.streaming && Array.isArray(m.streaming)) {
+          return m.streaming.some(s => s.toLowerCase() === selectedProvider.toLowerCase());
+        }
+        return true;
+      });
+    }
+
+    if (countText) {
+      countText.innerHTML = `<i class="fa-solid fa-film" style="color: var(--accent-red);"></i> Found <strong>${results.length}</strong> matching movies`;
+    }
+
+    const grid = document.getElementById("movies-grid");
+    const emptyState = document.getElementById("movies-empty");
+
+    if (loadMoreBtn) {
+      loadMoreBtn.innerHTML = `<i class="fa-solid fa-arrows-spin"></i> Load More Movies`;
+      loadMoreBtn.disabled = false;
+    }
+
+    if (results.length === 0) {
+      if (resetPage) grid.innerHTML = "";
+      emptyState.style.display = resetPage ? "block" : "none";
+      if (loadMoreBtn) loadMoreBtn.style.display = "none";
+      return;
+    }
+
+    emptyState.style.display = "none";
+    window.CinePlay.renderMovies(results, grid, !resetPage);
+    if (loadMoreBtn) loadMoreBtn.style.display = response.hasMore ? "inline-flex" : "none";
+  } catch (error) {
+    console.error("Error loading movies grid:", error);
+    if (loadMoreBtn) {
+      loadMoreBtn.innerHTML = `<i class="fa-solid fa-arrows-spin"></i> Load More Movies`;
+      loadMoreBtn.disabled = false;
+    }
+  }
+}
 
     const grid = document.getElementById("movies-grid");
     const emptyState = document.getElementById("movies-empty");

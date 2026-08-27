@@ -83,54 +83,68 @@
     </div>
 
     <!-- Advanced Game Filter Drawer -->
-    <div class="filter-panel glass-panel" id="advanced-game-filter-drawer" style="display: none; flex-direction: column; gap: 20px; padding: 25px; margin-bottom: 25px; border-radius: 16px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
-        <h3 style="font-size: 16px; font-weight: 700; color: var(--text-primary);"><i class="fa-solid fa-gamepad" style="color: var(--accent-red);"></i> Advanced Game Filters</h3>
-        <button id="btn-close-game-drawer" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 18px;">&times;</button>
+    <div class="advanced-filter-drawer glass-panel" id="advanced-game-filter-drawer">
+      <div class="filter-drawer-header">
+        <div class="filter-drawer-title">
+          <i class="fa-solid fa-gamepad" style="color: var(--accent-red);"></i> Advanced Game Filters
+        </div>
+        <button id="btn-close-game-drawer" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 20px; padding: 4px 8px;">&times;</button>
       </div>
 
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
-        <!-- Sort By -->
-        <div>
-          <label style="font-size: 12px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 6px;">SORT BY</label>
-          <select class="filter-select" id="game-sort" style="width: 100%;">
-            <option value="rating-desc">Rating: High to Low</option>
-            <option value="rating-asc">Rating: Low to High</option>
-            <option value="year-desc">Year: Newest First</option>
-            <option value="year-asc">Year: Oldest First</option>
+      <div class="filter-grid-layout">
+        <!-- Card 1: Sort By -->
+        <div class="filter-card-block">
+          <label class="filter-field-label"><i class="fa-solid fa-arrow-down-wide-short" style="color: var(--accent-red);"></i> Sort By</label>
+          <select class="filter-select-styled" id="game-sort">
+            <option value="rating-desc" selected>⭐ Rating: High to Low</option>
+            <option value="year-desc">🎮 Year: Newest First</option>
+            <option value="rating-asc">📊 Rating: Low to High</option>
+            <option value="year-asc">🕰️ Year: Oldest First</option>
+            <option value="title-asc">🔤 Title: A to Z</option>
           </select>
         </div>
 
-        <!-- Platform -->
-        <div>
-          <label style="font-size: 12px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 6px;">PLATFORM</label>
-          <select class="filter-select" id="game-platform" style="width: 100%;">
-            <option value="All">All Platforms</option>
-            <option value="PC">PC</option>
-            <option value="PlayStation">PlayStation</option>
-            <option value="Xbox">Xbox</option>
-            <option value="Nintendo Switch">Nintendo Switch</option>
+        <!-- Card 2: Platform -->
+        <div class="filter-card-block">
+          <label class="filter-field-label"><i class="fa-solid fa-desktop" style="color: #3b82f6;"></i> Gaming Platform</label>
+          <select class="filter-select-styled" id="game-platform">
+            <option value="All">🎮 All Platforms</option>
+            <option value="PC">🖥️ PC (Windows / Steam)</option>
+            <option value="PlayStation">🔵 PlayStation (PS5 / PS4)</option>
+            <option value="Xbox">🟢 Xbox (Series X/S)</option>
+            <option value="Nintendo Switch">🔴 Nintendo Switch</option>
           </select>
         </div>
 
-        <!-- Price Range -->
-        <div>
-          <label style="font-size: 12px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 6px;">PRICE CATEGORY</label>
-          <select class="filter-select" id="game-price" style="width: 100%;">
-            <option value="All">All Prices</option>
-            <option value="Free">Free to Play</option>
-            <option value="Under500">Under ₹1,000</option>
-            <option value="Under2000">₹1,000 – ₹2,000</option>
-            <option value="2000Plus">₹2,000+</option>
+        <!-- Card 3: Price Category -->
+        <div class="filter-card-block">
+          <label class="filter-field-label"><i class="fa-solid fa-tags" style="color: #10b981;"></i> Price Category</label>
+          <select class="filter-select-styled" id="game-price">
+            <option value="All">🏷️ All Prices</option>
+            <option value="Free">🎁 Free to Play</option>
+            <option value="Under500">💰 Budget: Under ₹1,000</option>
+            <option value="Under2000">💳 Standard: ₹1,000 – ₹2,500</option>
+            <option value="2000Plus">👑 AAA / Premium: ₹2,500+</option>
+          </select>
+        </div>
+
+        <!-- Card 4: Player Experience Mode -->
+        <div class="filter-card-block">
+          <label class="filter-field-label"><i class="fa-solid fa-users" style="color: #f59e0b;"></i> Experience Mode</label>
+          <select class="filter-select-styled" id="game-experience">
+            <option value="All">🕹️ All Modes</option>
+            <option value="Singleplayer">👤 Singleplayer Story Rich</option>
+            <option value="Multiplayer">👥 Multiplayer / Co-Op</option>
+            <option value="Open World">🌐 Open World Exploration</option>
           </select>
         </div>
       </div>
 
-      <!-- Genres -->
-      <div>
-        <label style="font-size: 12px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 8px;">GENRES</label>
+      <!-- Genres Multi-Select -->
+      <div class="filter-genre-section">
+        <label class="filter-field-label" style="margin-bottom: 12px;"><i class="fa-solid fa-icons" style="color: var(--accent-red);"></i> Filter By Game Genre</label>
         <div class="genres-pills" id="genres-container">
-          <button class="genre-pill active" data-genre="All">All</button>
+          <button class="genre-pill active" data-genre="All">All Genres</button>
           <button class="genre-pill" data-genre="RPG">RPG</button>
           <button class="genre-pill" data-genre="Action">Action</button>
           <button class="genre-pill" data-genre="Adventure">Adventure</button>
@@ -138,13 +152,27 @@
           <button class="genre-pill" data-genre="Horror">Horror</button>
           <button class="genre-pill" data-genre="Sci-Fi">Sci-Fi</button>
           <button class="genre-pill" data-genre="Sandbox">Sandbox</button>
+          <button class="genre-pill" data-genre="Metroidvania">Metroidvania</button>
+          <button class="genre-pill" data-genre="Roguelike">Roguelike</button>
+          <button class="genre-pill" data-genre="Puzzle">Puzzle</button>
+          <button class="genre-pill" data-genre="Superhero">Superhero</button>
+          <button class="genre-pill" data-genre="Detective">Detective</button>
         </div>
       </div>
 
-      <!-- Action Buttons -->
-      <div style="display: flex; gap: 12px; justify-content: flex-end; pt: 10px; border-top: 1px solid var(--border-color);">
-        <button class="btn btn-outline" id="btn-reset-game-filters"><i class="fa-solid fa-rotate-left"></i> Reset</button>
-        <button class="btn btn-primary" id="btn-apply-game-filters"><i class="fa-solid fa-check"></i> Apply Filters</button>
+      <!-- Action Buttons & Match Counter -->
+      <div class="filter-drawer-actions">
+        <div class="filter-match-count" id="game-match-count-text">
+          <i class="fa-solid fa-sparkles" style="color: var(--accent-red);"></i> Ready to filter games
+        </div>
+        <div style="display: flex; gap: 12px;">
+          <button class="btn btn-outline" id="btn-reset-game-filters" style="border-radius: 25px; padding: 10px 22px;">
+            <i class="fa-solid fa-rotate-left"></i> Reset All
+          </button>
+          <button class="btn btn-primary" id="btn-apply-game-filters" style="border-radius: 25px; padding: 10px 26px;">
+            <i class="fa-solid fa-check"></i> Apply Filters
+          </button>
+        </div>
       </div>
     </div>
 

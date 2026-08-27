@@ -94,61 +94,96 @@
     </div>
 
     <!-- Advanced Filter Panel (Collapsible / Bottom Sheet on Mobile) -->
-    <div class="filter-panel glass-panel" id="advanced-filter-drawer" style="display: none; flex-direction: column; gap: 20px; padding: 25px; margin-bottom: 25px; border-radius: 16px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
-        <h3 style="font-size: 16px; font-weight: 700; color: var(--text-primary);"><i class="fa-solid fa-sliders" style="color: var(--accent-red);"></i> Advanced Movie Filters</h3>
-        <button id="btn-close-filter-drawer" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 18px;">&times;</button>
+    <div class="advanced-filter-drawer glass-panel" id="advanced-filter-drawer">
+      <div class="filter-drawer-header">
+        <div class="filter-drawer-title">
+          <i class="fa-solid fa-sliders" style="color: var(--accent-red);"></i> Advanced Movie Filters
+        </div>
+        <button id="btn-close-filter-drawer" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 20px; padding: 4px 8px;">&times;</button>
       </div>
 
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px;">
-        <!-- Sort By -->
-        <div>
-          <label style="font-size: 12px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 6px;">SORT BY</label>
-          <select class="filter-select" id="movie-sort" style="width: 100%;">
-            <option value="popularity-desc" selected>Popularity & Trending</option>
-            <option value="rating-desc">Top Rated Masterpieces</option>
-            <option value="year-desc">Year: Newest First</option>
-            <option value="year-asc">Year: Oldest First</option>
+      <div class="filter-grid-layout">
+        <!-- Card 1: Sort By -->
+        <div class="filter-card-block">
+          <label class="filter-field-label"><i class="fa-solid fa-arrow-down-wide-short" style="color: var(--accent-red);"></i> Sort By</label>
+          <select class="filter-select-styled" id="movie-sort">
+            <option value="popularity-desc" selected>🔥 Popularity & Trending</option>
+            <option value="rating-desc">⭐ Top Rated Masterpieces</option>
+            <option value="year-desc">🎬 Year: Newest First</option>
+            <option value="year-asc">🕰️ Year: Oldest First</option>
           </select>
         </div>
 
-        <!-- Language -->
-        <div>
-          <label style="font-size: 12px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 6px;">LANGUAGE</label>
-          <select class="filter-select" id="movie-language" style="width: 100%;">
-            <option value="All">All Languages</option>
-            <option value="English">English</option>
-            <option value="Hindi">Hindi</option>
-            <option value="Japanese">Japanese</option>
-            <option value="Korean">Korean</option>
-            <option value="Spanish">Spanish</option>
+        <!-- Card 2: Language -->
+        <div class="filter-card-block">
+          <label class="filter-field-label"><i class="fa-solid fa-language" style="color: #3b82f6;"></i> Language / Audio</label>
+          <select class="filter-select-styled" id="movie-language">
+            <option value="All">🌐 All Languages</option>
+            <option value="English">🇺🇸 English (Hollywood)</option>
+            <option value="Hindi">🇮🇳 Hindi (Indian Cinema)</option>
+            <option value="Japanese">🇯🇵 Japanese (Anime / Cinema)</option>
+            <option value="Korean">🇰🇷 Korean (K-Drama / Cinema)</option>
+            <option value="Spanish">🇪🇸 Spanish</option>
+            <option value="French">🇫🇷 French</option>
           </select>
         </div>
 
-        <!-- Country -->
-        <div>
-          <label style="font-size: 12px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 6px;">COUNTRY</label>
-          <select class="filter-select" id="movie-country" style="width: 100%;">
-            <option value="All">All Countries</option>
-            <option value="USA">United States</option>
-            <option value="India">India</option>
-            <option value="Japan">Japan</option>
-            <option value="South Korea">South Korea</option>
+        <!-- Card 3: Country of Origin -->
+        <div class="filter-card-block">
+          <label class="filter-field-label"><i class="fa-solid fa-earth-americas" style="color: #10b981;"></i> Country of Origin</label>
+          <select class="filter-select-styled" id="movie-country">
+            <option value="All">🌍 All Countries</option>
+            <option value="USA">🇺🇸 United States</option>
+            <option value="India">🇮🇳 India</option>
+            <option value="Japan">🇯🇵 Japan</option>
+            <option value="South Korea">🇰🇷 South Korea</option>
+            <option value="UK">🇬🇧 United Kingdom</option>
+            <option value="France">🇫🇷 France</option>
           </select>
         </div>
 
-        <!-- Minimum Rating Slider -->
-        <div>
-          <label style="font-size: 12px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 6px;">MIN RATING: <span id="rating-val-display" style="color: var(--accent-red);">0.0</span></label>
-          <input type="range" id="movie-min-rating" min="0" max="10" step="0.5" value="0" style="width: 100%; accent-color: var(--accent-red);">
+        <!-- Card 4: Release Era -->
+        <div class="filter-card-block">
+          <label class="filter-field-label"><i class="fa-solid fa-calendar-days" style="color: #f59e0b;"></i> Release Era</label>
+          <select class="filter-select-styled" id="movie-era">
+            <option value="All">📅 All Eras</option>
+            <option value="2024">✨ 2024+ (Current Year)</option>
+            <option value="2020-2023">🚀 2020 - 2023 (Modern Hits)</option>
+            <option value="2010-2019">🏆 2010 - 2019 (Golden 2010s)</option>
+            <option value="2000-2009">💿 2000 - 2009 (2000s Hits)</option>
+            <option value="1990-1999">📼 90s & Classic Masterpieces</option>
+          </select>
+        </div>
+
+        <!-- Card 5: Streaming Platform -->
+        <div class="filter-card-block">
+          <label class="filter-field-label"><i class="fa-solid fa-tv" style="color: #ec4899;"></i> Where to Watch</label>
+          <select class="filter-select-styled" id="movie-provider">
+            <option value="All">📺 All Streaming Platforms</option>
+            <option value="Netflix">🔴 Netflix</option>
+            <option value="Prime Video">🔵 Prime Video</option>
+            <option value="Disney+">✨ Disney+</option>
+            <option value="Apple TV">🍎 Apple TV</option>
+            <option value="HBO Max">🟣 HBO Max</option>
+            <option value="Hulu">🟢 Hulu</option>
+          </select>
+        </div>
+
+        <!-- Card 6: Minimum Rating Slider -->
+        <div class="filter-card-block">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <label class="filter-field-label"><i class="fa-solid fa-star" style="color: #facc15;"></i> Min Rating</label>
+            <span class="rating-badge-preview" id="rating-val-display"><i class="fa-solid fa-star"></i> 0.0+</span>
+          </div>
+          <input type="range" id="movie-min-rating" min="0" max="10" step="0.5" value="0" style="width: 100%; accent-color: var(--accent-red); margin-top: 10px; cursor: pointer;">
         </div>
       </div>
 
-      <!-- Genres Multi-Select -->
-      <div>
-        <label style="font-size: 12px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 8px;">GENRES</label>
+      <!-- Full Width Genres Multi-Select -->
+      <div class="filter-genre-section">
+        <label class="filter-field-label" style="margin-bottom: 12px;"><i class="fa-solid fa-icons" style="color: var(--accent-red);"></i> Filter By Genre</label>
         <div class="genres-pills" id="genres-container">
-          <button class="genre-pill active" data-genre="All">All</button>
+          <button class="genre-pill active" data-genre="All">All Genres</button>
           <button class="genre-pill" data-genre="Action">Action</button>
           <button class="genre-pill" data-genre="Sci-Fi">Sci-Fi</button>
           <button class="genre-pill" data-genre="Adventure">Adventure</button>
@@ -167,10 +202,19 @@
         </div>
       </div>
 
-      <!-- Action Buttons -->
-      <div style="display: flex; gap: 12px; justify-content: flex-end; pt: 10px; border-top: 1px solid var(--border-color);">
-        <button class="btn btn-outline" id="btn-reset-filters"><i class="fa-solid fa-rotate-left"></i> Reset</button>
-        <button class="btn btn-primary" id="btn-apply-filters"><i class="fa-solid fa-check"></i> Apply Filters</button>
+      <!-- Action Buttons & Match Counter -->
+      <div class="filter-drawer-actions">
+        <div class="filter-match-count" id="filter-match-count-text">
+          <i class="fa-solid fa-sparkles" style="color: var(--accent-red);"></i> Ready to filter catalog
+        </div>
+        <div style="display: flex; gap: 12px;">
+          <button class="btn btn-outline" id="btn-reset-filters" style="border-radius: 25px; padding: 10px 22px;">
+            <i class="fa-solid fa-rotate-left"></i> Reset All
+          </button>
+          <button class="btn btn-primary" id="btn-apply-filters" style="border-radius: 25px; padding: 10px 26px;">
+            <i class="fa-solid fa-check"></i> Apply Filters
+          </button>
+        </div>
       </div>
     </div>
 

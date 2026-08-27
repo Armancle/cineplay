@@ -8,9 +8,10 @@ document.addEventListener("DOMContentLoaded", () => {
 // Grid State Parameters
 let activeGenre = "All";
 let activePlatform = "All";
+let activePrice = "All";
+let activeExperience = "All";
 let searchQuery = "";
 let sortBy = "rating-desc";
-let activePrice = "All";
 let currentPage = 1;
 const itemsPerPage = 8;
 
@@ -19,6 +20,7 @@ function initGamesPage() {
   const sortSelect = document.getElementById("game-sort");
   const platformSelect = document.getElementById("game-platform");
   const priceSelect = document.getElementById("game-price");
+  const expSelect = document.getElementById("game-experience");
   const genresContainer = document.getElementById("genres-container");
   const loadMoreBtn = document.getElementById("btn-load-more");
   const resetBtn = document.getElementById("btn-reset-game-filters");
@@ -86,6 +88,13 @@ function initGamesPage() {
     });
   }
 
+  if (expSelect) {
+    expSelect.addEventListener("change", (e) => {
+      activeExperience = e.target.value;
+      loadGamesGrid(true);
+    });
+  }
+
   if (genresContainer) {
     genresContainer.addEventListener("click", (e) => {
       const pill = e.target.closest(".genre-pill");
@@ -101,8 +110,10 @@ function initGamesPage() {
     applyBtn.addEventListener("click", () => {
       if (platformSelect) activePlatform = platformSelect.value;
       if (priceSelect) activePrice = priceSelect.value;
+      if (expSelect) activeExperience = expSelect.value;
       loadGamesGrid(true);
       if (drawer) drawer.style.display = "none";
+      if (window.CinePlay.showToast) window.CinePlay.showToast("Game filters applied!", "fa-check");
     });
   }
 
@@ -112,11 +123,13 @@ function initGamesPage() {
       if (sortSelect) sortSelect.value = "rating-desc";
       if (platformSelect) platformSelect.value = "All";
       if (priceSelect) priceSelect.value = "All";
+      if (expSelect) expSelect.value = "All";
       searchQuery = "";
       sortBy = "rating-desc";
       activeGenre = "All";
       activePlatform = "All";
       activePrice = "All";
+      activeExperience = "All";
       
       if (genresContainer) {
         genresContainer.querySelectorAll(".genre-pill").forEach(p => {
@@ -143,6 +156,8 @@ function initGamesPage() {
 /* Fetch games from client API service and trigger render */
 async function loadGamesGrid(resetPage = true) {
   const loadMoreBtn = document.getElementById("btn-load-more");
+  const countText = document.getElementById("game-match-count-text");
+
   if (resetPage) {
     currentPage = 1;
     showGridSkeletons();
@@ -167,11 +182,29 @@ async function loadGamesGrid(resetPage = true) {
     if (activePrice !== "All") {
       results = results.filter(g => {
         if (activePrice === "Free") return g.price === "Free";
-        if (activePrice === "Under500") return g.price !== "Free" && parseInt(g.price.replace(/[^\d]/g, "") || "0") <= 1000;
-        if (activePrice === "Under2000") return g.price !== "Free" && parseInt(g.price.replace(/[^\d]/g, "") || "0") <= 2000;
-        if (activePrice === "2000Plus") return g.price !== "Free" && parseInt(g.price.replace(/[^\d]/g, "") || "0") > 2000;
+        const priceNum = parseInt((g.price || "0").replace(/[^\d]/g, "") || "0");
+        if (activePrice === "Under500") return g.price !== "Free" && priceNum <= 1000;
+        if (activePrice === "Under2000") return g.price !== "Free" && priceNum <= 2500;
+        if (activePrice === "2000Plus") return g.price !== "Free" && priceNum > 2500;
         return true;
       });
+    }
+
+    if (activeExperience !== "All") {
+      results = results.filter(g => {
+        const desc = (g.description || "").toLowerCase();
+        const tags = (g.tags || []).join(" ").toLowerCase();
+        const genreStr = (g.genre || []).join(" ").toLowerCase();
+        const combined = `${desc} ${tags} ${genreStr}`;
+        if (activeExperience === "Singleplayer") return combined.includes("singleplayer") || combined.includes("story");
+        if (activeExperience === "Multiplayer") return combined.includes("multiplayer") || combined.includes("co-op") || combined.includes("pvp");
+        if (activeExperience === "Open World") return combined.includes("open world") || combined.includes("exploration");
+        return true;
+      });
+    }
+
+    if (countText) {
+      countText.innerHTML = `<i class="fa-solid fa-gamepad" style="color: var(--accent-red);"></i> Found <strong>${results.length}</strong> matching games`;
     }
 
     const grid = document.getElementById("games-grid");
