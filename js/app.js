@@ -757,7 +757,7 @@ function initMoodQuizModal() {
         <button class="btn btn-outline quiz-nav-btn" id="quiz-prev-btn" style="visibility: hidden;" onclick="navigateQuizStep(-1)">
           <i class="fa-solid fa-arrow-left"></i> Back
         </button>
-        <div style="display: flex; gap: 10px;">
+        <div style="display: flex; gap: 10px; align-items: center;">
           <button class="btn btn-outline quiz-nav-btn" id="quiz-skip-btn" onclick="closeMoodQuizModal()">Skip</button>
           <button class="btn btn-primary quiz-nav-btn" id="quiz-next-btn" onclick="navigateQuizStep(1)">
             Next <i class="fa-solid fa-arrow-right"></i>
@@ -771,14 +771,22 @@ function initMoodQuizModal() {
 
   const closeBtn = moodQuizModal.querySelector("#close-quiz-btn");
   closeBtn.addEventListener("click", closeMoodQuizModal);
+  moodQuizModal.addEventListener("click", (e) => {
+    if (e.target === moodQuizModal) closeMoodQuizModal();
+  });
 
-  // Auto show on first visit of session on index.html
-  if (window.location.pathname.endsWith("index.html") || window.location.pathname === "/" || window.location.pathname === "") {
-    if (!sessionStorage.getItem("cineplay_quiz_done")) {
-      setTimeout(() => {
-        openMoodQuizModal();
-      }, 1000);
-    }
+  // Auto show on every visit / refresh on index.html (landing page)
+  const isHomePage = 
+    window.location.pathname.endsWith("index.html") || 
+    window.location.pathname === "/" || 
+    window.location.pathname === "" ||
+    window.location.pathname.endsWith("/cineplay/") ||
+    window.location.pathname.endsWith("/cineplay/index.html");
+
+  if (isHomePage) {
+    setTimeout(() => {
+      openMoodQuizModal();
+    }, 600);
   }
 }
 
@@ -792,7 +800,6 @@ function openMoodQuizModal() {
 
 function closeMoodQuizModal() {
   if (!moodQuizModal) return;
-  sessionStorage.setItem("cineplay_quiz_done", "true");
   moodQuizModal.classList.remove("active");
   document.body.style.overflow = "";
 }
@@ -808,6 +815,9 @@ window.navigateQuizStep = function(direction) {
   currentQuizStep += direction;
   if (currentQuizStep > 4 && direction > 0) {
     calculateQuizResults();
+  } else if (currentQuizStep < 1) {
+    currentQuizStep = 1;
+    updateQuizUI();
   } else {
     updateQuizUI();
   }
@@ -822,13 +832,30 @@ function updateQuizUI() {
   const nextBtn = document.getElementById("quiz-next-btn");
   const skipBtn = document.getElementById("quiz-skip-btn");
 
+  if (!tag || !title) return;
+
   const stepPanes = moodQuizModal.querySelectorAll(".quiz-step-pane");
   stepPanes.forEach(pane => {
     pane.classList.toggle("active", parseInt(pane.dataset.step, 10) === currentQuizStep);
   });
 
+  if (currentQuizStep === 5) {
+    prevBtn.style.visibility = "visible";
+    prevBtn.innerHTML = '<i class="fa-solid fa-rotate-left"></i> Retake';
+    prevBtn.onclick = () => { currentQuizStep = 1; updateQuizUI(); };
+    skipBtn.style.display = "none";
+    nextBtn.style.display = "inline-flex";
+    nextBtn.innerHTML = '<i class="fa-solid fa-check"></i> Done';
+    nextBtn.onclick = closeMoodQuizModal;
+    return;
+  }
+
+  // Restore regular onclick for steps 1-4
+  prevBtn.onclick = () => navigateQuizStep(-1);
+  nextBtn.onclick = () => navigateQuizStep(1);
+  nextBtn.style.display = "inline-flex";
   prevBtn.style.visibility = currentQuizStep > 1 ? "visible" : "hidden";
-  skipBtn.style.display = currentQuizStep === 5 ? "none" : "inline-block";
+  skipBtn.style.display = "inline-block";
 
   if (currentQuizStep === 1) {
     tag.textContent = "Step 1 of 4 • Mood";
@@ -836,24 +863,28 @@ function updateQuizUI() {
     subtitle.textContent = "Select your vibe and let CinePlay recommend the perfect movie.";
     progressBar.style.width = "25%";
     nextBtn.innerHTML = 'Next <i class="fa-solid fa-arrow-right"></i>';
+    prevBtn.innerHTML = '<i class="fa-solid fa-arrow-left"></i> Back';
   } else if (currentQuizStep === 2) {
     tag.textContent = "Step 2 of 4 • Time of Day";
     title.textContent = "What is the time of day?";
     subtitle.textContent = "We adjust recommendations based on your viewing environment.";
     progressBar.style.width = "50%";
     nextBtn.innerHTML = 'Next <i class="fa-solid fa-arrow-right"></i>';
+    prevBtn.innerHTML = '<i class="fa-solid fa-arrow-left"></i> Back';
   } else if (currentQuizStep === 3) {
     tag.textContent = "Step 3 of 4 • Watch Partner";
     title.textContent = "Who are you watching with?";
     subtitle.textContent = "Solo relaxation, date night, or family movie session?";
     progressBar.style.width = "75%";
     nextBtn.innerHTML = 'Next <i class="fa-solid fa-arrow-right"></i>';
+    prevBtn.innerHTML = '<i class="fa-solid fa-arrow-left"></i> Back';
   } else if (currentQuizStep === 4) {
     tag.textContent = "Step 4 of 4 • Time Limit";
     title.textContent = "How much time do you have?";
     subtitle.textContent = "Pick your ideal duration to prevent late night fatigue.";
     progressBar.style.width = "100%";
     nextBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Get My Match';
+    prevBtn.innerHTML = '<i class="fa-solid fa-arrow-left"></i> Back';
   }
 }
 
@@ -862,13 +893,11 @@ function calculateQuizResults() {
   const tag = document.getElementById("quiz-step-tag");
   const title = document.getElementById("quiz-question-title");
   const subtitle = document.getElementById("quiz-question-subtitle");
-  const nextBtn = document.getElementById("quiz-next-btn");
 
   currentQuizStep = 5;
   tag.textContent = "Your Perfect Cinema Match";
   title.textContent = "No More Scrolling!";
   subtitle.textContent = `Based on your ${quizSelections.mood} vibe, ${quizSelections.timeOfDay.toLowerCase()} timing, and ${quizSelections.company.toLowerCase()} plan:`;
-  nextBtn.style.display = "none";
 
   const matches = CinePlay.getRecommendations({
     contentType: "movie",
@@ -884,25 +913,23 @@ function calculateQuizResults() {
       <img src="${topMatch.poster}" alt="${topMatch.title}" class="quiz-result-poster">
       <div class="quiz-result-info">
         <span class="match-score-chip"><i class="fa-solid fa-bolt"></i> ${score}% Match</span>
-        <span class="match-rationale-tag">Perfect for ${quizSelections.company} ${quizSelections.timeOfDay}</span>
-        <h3 style="font-size: 20px; font-weight: 700; margin-bottom: 6px;">${topMatch.title}</h3>
+        <span class="match-rationale-tag">Perfect for ${quizSelections.company} • ${quizSelections.timeOfDay}</span>
+        <h3 style="font-size: 20px; font-weight: 700; margin-bottom: 6px; color: var(--text-primary);">${topMatch.title}</h3>
         <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${topMatch.description}</p>
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-          ${topMatch.trailer ? `<button class="btn btn-primary" onclick="CinePlay.openTrailerModal('${topMatch.trailer}', '${topMatch.title.replace(/'/g, "\\'")}')"><i class="fa-solid fa-play"></i> Watch Trailer</button>` : ''}
-          <button class="btn btn-outline" onclick="CinePlay.openDetailsModal(window.moviesData.find(m => m.id === '${topMatch.id}'), 'movie')"><i class="fa-solid fa-circle-info"></i> Full Details</button>
+          ${topMatch.trailer ? `<button class="btn btn-primary" style="padding: 8px 16px; font-size: 12px;" onclick="CinePlay.openTrailerModal('${topMatch.trailer}', '${topMatch.title.replace(/'/g, "\\'")}')"><i class="fa-solid fa-play"></i> Watch Trailer</button>` : ''}
+          <button class="btn btn-outline" style="padding: 8px 16px; font-size: 12px;" onclick="CinePlay.openDetailsModal(window.moviesData.find(m => m.id === '${topMatch.id}'), 'movie')"><i class="fa-solid fa-circle-info"></i> Full Details</button>
         </div>
       </div>
     </div>
-    <div style="text-align: center; margin-top: 20px;">
-      <a href="recommendations.html" class="btn btn-primary btn-large" style="width: 100%; border-radius: 30px;" onclick="closeMoodQuizModal()">
+    <div style="text-align: center; margin-top: 15px;">
+      <a href="recommendations.html" class="btn btn-primary btn-large" style="width: 100%; border-radius: 30px; padding: 12px 20px; font-size: 14px;" onclick="closeMoodQuizModal()">
         <i class="fa-solid fa-wand-magic-sparkles"></i> Explore All Matches on Recommendation Engine
       </a>
     </div>
   `;
 
-  document.querySelectorAll(".quiz-step-pane").forEach(pane => pane.classList.remove("active"));
-  resultPane.classList.add("active");
-  sessionStorage.setItem("cineplay_quiz_done", "true");
+  updateQuizUI();
 }
 
 /* ==========================================================================
