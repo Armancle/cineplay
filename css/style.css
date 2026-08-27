@@ -1360,7 +1360,17 @@ footer {
 .modal-actions {
   margin-top: auto;
   display: flex;
-  gap: 15px;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.modal-actions .btn {
+  flex: 1 1 auto;
+  min-width: 120px;
+  justify-content: center;
+  text-align: center;
+  white-space: nowrap;
 }
 
 /* Recommendations Engine Layout */

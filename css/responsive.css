@@ -412,8 +412,14 @@
   }
 
   .modal-actions {
-    flex-direction: column;
-    gap: 10px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .modal-actions .btn {
+    flex: 1 1 120px;
+    font-size: 12.5px;
+    padding: 9px 14px;
   }
 
   /* Nav actions and auth on mobile */
