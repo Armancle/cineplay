@@ -1,0 +1,47 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Public catalog metadata cache (movies, games, people, genres, providers)
+    match /movies/{movieId} {
+      allow read: if true;
+      allow write: if request.auth != null || true; // allow cache populating
+    }
+    
+    match /games/{gameId} {
+      allow read: if true;
+      allow write: if request.auth != null || true;
+    }
+    
+    match /people/{personId} {
+      allow read: if true;
+      allow write: if request.auth != null || true;
+    }
+
+    match /genres/{genreId} {
+      allow read: if true;
+      allow write: if request.auth != null || true;
+    }
+
+    match /providers/{providerId} {
+      allow read: if true;
+      allow write: if request.auth != null || true;
+    }
+
+    // Protected User Collections (Favorites, History, Preferences)
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      match /favorites/{favId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      match /history/{histId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      match /preferences/{prefId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+  }
+}

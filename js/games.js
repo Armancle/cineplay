@@ -10,6 +10,7 @@ let activeGenre = "All";
 let activePlatform = "All";
 let searchQuery = "";
 let sortBy = "rating-desc";
+let activePrice = "All";
 let currentPage = 1;
 const itemsPerPage = 8;
 
@@ -17,87 +18,139 @@ function initGamesPage() {
   const searchInput = document.getElementById("game-search");
   const sortSelect = document.getElementById("game-sort");
   const platformSelect = document.getElementById("game-platform");
+  const priceSelect = document.getElementById("game-price");
   const genresContainer = document.getElementById("genres-container");
   const loadMoreBtn = document.getElementById("btn-load-more");
-  const resetBtn = document.getElementById("btn-reset-filters");
+  const resetBtn = document.getElementById("btn-reset-game-filters");
+  const applyBtn = document.getElementById("btn-apply-game-filters");
+  const drawerToggleBtn = document.getElementById("btn-toggle-game-filters");
+  const drawerCloseBtn = document.getElementById("btn-close-game-drawer");
+  const drawer = document.getElementById("advanced-game-filter-drawer");
 
   // Read URL query parameters
   const urlParams = new URLSearchParams(window.location.search);
   const urlSearch = urlParams.get("search");
   const urlGenre = urlParams.get("genre");
 
-  if (urlSearch) {
+  if (urlSearch && searchInput) {
     searchQuery = decodeURIComponent(urlSearch);
     searchInput.value = searchQuery;
   }
 
-  if (urlGenre) {
+  if (urlGenre && genresContainer) {
     activeGenre = urlGenre;
     genresContainer.querySelectorAll(".genre-pill").forEach(pill => {
       pill.classList.toggle("active", pill.dataset.genre.toLowerCase() === activeGenre.toLowerCase());
     });
   }
 
-  // Bind Events
-  searchInput.addEventListener("input", debounce((e) => {
-    searchQuery = e.target.value.trim();
-    loadGamesGrid(true);
-  }, 300));
-
-  sortSelect.addEventListener("change", (e) => {
-    sortBy = e.target.value;
-    loadGamesGrid(true);
-  });
-
-  platformSelect.addEventListener("change", (e) => {
-    activePlatform = e.target.value;
-    loadGamesGrid(true);
-  });
-
-  genresContainer.addEventListener("click", (e) => {
-    const pill = e.target.closest(".genre-pill");
-    if (!pill) return;
-
-    genresContainer.querySelectorAll(".genre-pill").forEach(p => p.classList.remove("active"));
-    pill.classList.add("active");
-    activeGenre = pill.dataset.genre;
-    
-    loadGamesGrid(true);
-  });
-
-  loadMoreBtn.addEventListener("click", () => {
-    currentPage++;
-    loadGamesGrid(false);
-  });
-
-  resetBtn.addEventListener("click", () => {
-    searchInput.value = "";
-    sortSelect.value = "rating-desc";
-    platformSelect.value = "All";
-    searchQuery = "";
-    sortBy = "rating-desc";
-    activeGenre = "All";
-    activePlatform = "All";
-    
-    genresContainer.querySelectorAll(".genre-pill").forEach(p => {
-      p.classList.toggle("active", p.dataset.genre === "All");
+  // Drawer Toggles
+  if (drawerToggleBtn && drawer) {
+    drawerToggleBtn.addEventListener("click", () => {
+      const isVis = drawer.style.display === "flex";
+      drawer.style.display = isVis ? "none" : "flex";
     });
+  }
+  if (drawerCloseBtn && drawer) {
+    drawerCloseBtn.addEventListener("click", () => {
+      drawer.style.display = "none";
+    });
+  }
 
-    loadGamesGrid(true);
-  });
+  // Bind Events
+  if (searchInput) {
+    searchInput.addEventListener("input", debounce((e) => {
+      searchQuery = e.target.value.trim();
+      loadGamesGrid(true);
+    }, 300));
+  }
 
-  // Sync favorites icons across grid cards
+  if (sortSelect) {
+    sortSelect.addEventListener("change", (e) => {
+      sortBy = e.target.value;
+      loadGamesGrid(true);
+    });
+  }
+
+  if (platformSelect) {
+    platformSelect.addEventListener("change", (e) => {
+      activePlatform = e.target.value;
+      loadGamesGrid(true);
+    });
+  }
+
+  if (priceSelect) {
+    priceSelect.addEventListener("change", (e) => {
+      activePrice = e.target.value;
+      loadGamesGrid(true);
+    });
+  }
+
+  if (genresContainer) {
+    genresContainer.addEventListener("click", (e) => {
+      const pill = e.target.closest(".genre-pill");
+      if (!pill) return;
+      genresContainer.querySelectorAll(".genre-pill").forEach(p => p.classList.remove("active"));
+      pill.classList.add("active");
+      activeGenre = pill.dataset.genre;
+      loadGamesGrid(true);
+    });
+  }
+
+  if (applyBtn) {
+    applyBtn.addEventListener("click", () => {
+      if (platformSelect) activePlatform = platformSelect.value;
+      if (priceSelect) activePrice = priceSelect.value;
+      loadGamesGrid(true);
+      if (drawer) drawer.style.display = "none";
+    });
+  }
+
+  if (resetBtn) {
+    resetBtn.addEventListener("click", () => {
+      if (searchInput) searchInput.value = "";
+      if (sortSelect) sortSelect.value = "rating-desc";
+      if (platformSelect) platformSelect.value = "All";
+      if (priceSelect) priceSelect.value = "All";
+      searchQuery = "";
+      sortBy = "rating-desc";
+      activeGenre = "All";
+      activePlatform = "All";
+      activePrice = "All";
+      
+      if (genresContainer) {
+        genresContainer.querySelectorAll(".genre-pill").forEach(p => {
+          p.classList.toggle("active", p.dataset.genre === "All");
+        });
+      }
+
+      loadGamesGrid(true);
+      if (window.CinePlay.showToast) window.CinePlay.showToast("Game filters reset", "fa-rotate-left");
+    });
+  }
+
+  if (loadMoreBtn) {
+    loadMoreBtn.addEventListener("click", () => {
+      currentPage++;
+      loadGamesGrid(false);
+    });
+  }
+
   window.addEventListener("favoritesChanged", syncFavoritesState);
-
-  // Initial fetch load
   loadGamesGrid(true);
 }
 
 /* Fetch games from client API service and trigger render */
 async function loadGamesGrid(resetPage = true) {
-  if (resetPage) currentPage = 1;
-
-  showGridSkeletons();
+  const loadMoreBtn = document.getElementById("btn-load-more");
+  if (resetPage) {
+    currentPage = 1;
+    showGridSkeletons();
+  } else if (loadMoreBtn) {
+    loadMoreBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Loading Games...`;
+    loadMoreBtn.disabled = true;
+  }
+  updateActiveGameChips();
 
   try {
     const response = await window.CinePlayAPI.fetchGames({
@@ -109,29 +162,84 @@ async function loadGamesGrid(resetPage = true) {
       limit: itemsPerPage
     });
 
+    let results = response.results;
+
+    if (activePrice !== "All") {
+      results = results.filter(g => {
+        if (activePrice === "Free") return g.price === "Free";
+        if (activePrice === "Under500") return g.price !== "Free" && parseInt(g.price.replace(/[^\d]/g, "") || "0") <= 1000;
+        if (activePrice === "Under2000") return g.price !== "Free" && parseInt(g.price.replace(/[^\d]/g, "") || "0") <= 2000;
+        if (activePrice === "2000Plus") return g.price !== "Free" && parseInt(g.price.replace(/[^\d]/g, "") || "0") > 2000;
+        return true;
+      });
+    }
+
     const grid = document.getElementById("games-grid");
-    const loadMoreBtn = document.getElementById("btn-load-more");
     const emptyState = document.getElementById("games-empty");
 
-    if (response.results.length === 0) {
-      grid.innerHTML = "";
-      emptyState.style.display = "block";
-      loadMoreBtn.style.display = "none";
+    if (loadMoreBtn) {
+      loadMoreBtn.innerHTML = `<i class="fa-solid fa-arrows-spin"></i> Load More Games`;
+      loadMoreBtn.disabled = false;
+    }
+
+    if (results.length === 0) {
+      if (resetPage && grid) grid.innerHTML = "";
+      if (emptyState) emptyState.style.display = resetPage ? "block" : "none";
+      if (loadMoreBtn) loadMoreBtn.style.display = "none";
       return;
     }
 
-    emptyState.style.display = "none";
-
-    // Use global render helper
-    window.CinePlay.renderGames(response.results, grid);
-
-    // Toggle pagination
-    loadMoreBtn.style.display = response.hasMore ? "inline-flex" : "none";
+    if (emptyState) emptyState.style.display = "none";
+    window.CinePlay.renderGames(results, grid, !resetPage);
+    if (loadMoreBtn) loadMoreBtn.style.display = response.hasMore ? "inline-flex" : "none";
   } catch (error) {
-    console.error("CinePlay API error fetching games:", error);
-    window.CinePlay.showToast("Error loading catalog.", "fa-circle-exclamation");
+    console.error("Error loading games:", error);
+    if (loadMoreBtn) {
+      loadMoreBtn.innerHTML = `<i class="fa-solid fa-arrows-spin"></i> Load More Games`;
+      loadMoreBtn.disabled = false;
+    }
   }
 }
+
+function updateActiveGameChips() {
+  const container = document.getElementById("game-chips-container");
+  const countBadge = document.getElementById("game-filter-count");
+  if (!container) return;
+
+  let activeCount = 0;
+  let html = "";
+
+  if (activeGenre !== "All") {
+    activeCount++;
+    html += `<span class="filter-chip-tag">${activeGenre} <i class="fa-solid fa-xmark" onclick="clearGameFilter('genre')"></i></span>`;
+  }
+  if (activePlatform !== "All") {
+    activeCount++;
+    html += `<span class="filter-chip-tag">${activePlatform} <i class="fa-solid fa-xmark" onclick="clearGameFilter('platform')"></i></span>`;
+  }
+  if (activePrice !== "All") {
+    activeCount++;
+    html += `<span class="filter-chip-tag">Price: ${activePrice} <i class="fa-solid fa-xmark" onclick="clearGameFilter('price')"></i></span>`;
+  }
+  if (searchQuery) {
+    activeCount++;
+    html += `<span class="filter-chip-tag">Search: "${searchQuery}" <i class="fa-solid fa-xmark" onclick="clearGameFilter('search')"></i></span>`;
+  }
+
+  container.innerHTML = html;
+  if (countBadge) {
+    countBadge.textContent = activeCount;
+    countBadge.style.display = activeCount > 0 ? "inline-block" : "none";
+  }
+}
+
+window.clearGameFilter = function(filterType) {
+  if (filterType === "genre") activeGenre = "All";
+  if (filterType === "platform") { activePlatform = "All"; const p = document.getElementById("game-platform"); if (p) p.value = "All"; }
+  if (filterType === "price") { activePrice = "All"; const pr = document.getElementById("game-price"); if (pr) pr.value = "All"; }
+  if (filterType === "search") { searchQuery = ""; const s = document.getElementById("game-search"); if (s) s.value = ""; }
+  loadGamesGrid(true);
+};
 
 function showGridSkeletons() {
   const grid = document.getElementById("games-grid");

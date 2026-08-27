@@ -613,10 +613,65 @@ const gamesData = [
   }
 ];
 
+const actorsData = [
+  { id: "a1", name: "Leonardo DiCaprio", role: "Actor", knownFor: "Inception, Titanic, Shutter Island", image: "images/posters/m1.jpg" },
+  { id: "a2", name: "Christian Bale", role: "Actor", knownFor: "The Dark Knight, American Psycho", image: "images/posters/m2.jpg" },
+  { id: "a3", name: "Matthew McConaughey", role: "Actor", knownFor: "Interstellar, True Detective", image: "images/posters/interstellar.png" },
+  { id: "a4", name: "Michelle Yeoh", role: "Actress", knownFor: "Everything Everywhere All at Once", image: "images/posters/m21.jpg" },
+  { id: "a5", name: "Song Kang-ho", role: "Actor", knownFor: "Parasite, Snowpiercer", image: "images/posters/m5.png" },
+  { id: "a6", name: "Cillian Murphy", role: "Actor", knownFor: "Oppenheimer, Peaky Blinders", image: "images/posters/m2.jpg" },
+  { id: "a7", name: "Miles Teller", role: "Actor", knownFor: "Whiplash, Top Gun: Maverick", image: "images/posters/m6.jpg" },
+  { id: "a8", name: "Anne Hathaway", role: "Actress", knownFor: "Interstellar, The Dark Knight Rises", image: "images/posters/interstellar.png" }
+];
+
+const directorsData = [
+  { id: "d1", name: "Christopher Nolan", role: "Director", knownFor: "Inception, The Dark Knight, Interstellar", image: "images/posters/m1.jpg" },
+  { id: "d2", name: "Hayao Miyazaki", role: "Director", knownFor: "Spirited Away, Princess Mononoke", image: "images/posters/m4.png" },
+  { id: "d3", name: "Bong Joon Ho", role: "Director", knownFor: "Parasite, Memories of Murder", image: "images/posters/m5.png" },
+  { id: "d4", name: "Damien Chazelle", role: "Director", knownFor: "Whiplash, La La Land", image: "images/posters/m6.jpg" },
+  { id: "d5", name: "Ridley Scott", role: "Director", knownFor: "Gladiator, Blade Runner", image: "images/posters/m1.jpg" },
+  { id: "d6", name: "Makoto Shinkai", role: "Director", knownFor: "Your Name., Weathering With You", image: "images/posters/m20.png" }
+];
+
+const providersData = [
+  { id: "p1", name: "Netflix", type: "STREAM", icon: "fa-solid fa-play", color: "#e50914" },
+  { id: "p2", name: "Prime Video", type: "STREAM", icon: "fa-solid fa-film", color: "#00a8e1" },
+  { id: "p3", name: "Disney+", type: "STREAM", icon: "fa-solid fa-sparkles", color: "#113ccf" },
+  { id: "p4", name: "JioHotstar", type: "STREAM", icon: "fa-solid fa-star", color: "#ffaa00" },
+  { id: "p5", name: "Apple TV", type: "RENT", icon: "fa-brands fa-apple", color: "#ffffff" },
+  { id: "p6", name: "HBO Max", type: "STREAM", icon: "fa-solid fa-tv", color: "#9933ff" },
+  { id: "p7", name: "Hulu", type: "STREAM", icon: "fa-solid fa-clapperboard", color: "#1ce783" }
+];
+
+// Enrich default items with missing metadata fields if not set
+moviesData.forEach((m, idx) => {
+  if (!m.language) m.language = idx % 2 === 0 ? "English" : (idx % 3 === 0 ? "Japanese" : "Korean");
+  if (!m.country) m.country = idx % 3 === 0 ? "USA" : (idx % 4 === 0 ? "Japan" : "South Korea");
+  if (!m.matchPercentage) m.matchPercentage = 85 + (idx % 15);
+});
+
+gamesData.forEach((g, idx) => {
+  if (!g.tags) g.tags = ["Open World", "Story Rich", "Singleplayer", "Atmospheric"];
+  if (!g.price) g.price = idx % 3 === 0 ? "Free" : `₹${999 + (idx * 200 % 2500)}`;
+  if (!g.publisher) g.publisher = g.developer || "Global Publishing";
+  if (!g.features) g.features = ["Controller Support", "Achievements", "Cloud Saves"];
+  if (!g.sysReq) {
+    g.sysReq = {
+      minimum: "OS: Windows 10 (64-bit) | CPU: Intel Core i5-8400 / AMD Ryzen 5 2600 | RAM: 8 GB | GPU: NVIDIA GTX 1060 / AMD RX 580 | Storage: 60 GB",
+      recommended: "OS: Windows 11 (64-bit) | CPU: Intel Core i7-10700K / AMD Ryzen 7 3700X | RAM: 16 GB | GPU: NVIDIA RTX 3070 / AMD RX 6700 XT | Storage: 60 GB SSD"
+    };
+  }
+  if (!g.matchPercentage) g.matchPercentage = 88 + (idx % 12);
+});
+
 // Export datasets to global scope or export module
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { moviesData, gamesData };
+  module.exports = { moviesData, gamesData, actorsData, directorsData, providersData };
 } else {
   window.moviesData = moviesData;
   window.gamesData = gamesData;
+  window.actorsData = actorsData;
+  window.directorsData = directorsData;
+  window.providersData = providersData;
 }
+

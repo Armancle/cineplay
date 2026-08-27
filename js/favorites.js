@@ -10,6 +10,13 @@ function initFavoritesPage() {
   const filterContainer = document.getElementById("fav-filter-container");
   const clearBtn = document.getElementById("btn-clear-favorites");
 
+  const sortSelect = document.getElementById("fav-sort");
+  if (sortSelect) {
+    sortSelect.addEventListener("change", () => {
+      renderFavoritesGrid();
+    });
+  }
+
   if (filterContainer) {
     filterContainer.addEventListener("click", (e) => {
       const pill = e.target.closest(".genre-pill");
@@ -35,8 +42,6 @@ function initFavoritesPage() {
   }
 
   window.addEventListener("favoritesChanged", renderFavoritesGrid);
-
-  // Initial render
   renderFavoritesGrid();
 }
 
@@ -45,13 +50,13 @@ function renderFavoritesGrid() {
   const emptyState = document.getElementById("favorites-empty");
   const filterPanel = document.getElementById("favorites-filters");
   const clearBtn = document.getElementById("btn-clear-favorites");
+  const sortSelect = document.getElementById("fav-sort");
 
   if (!grid) return;
 
   const rawFavs = window.CinePlay.getFavorites();
 
-  // Resolve datasets dynamically from coupling data objects
-  const fullFavs = rawFavs.map(fav => {
+  let fullFavs = rawFavs.map(fav => {
     const dataSet = fav.type === "movie" ? window.moviesData : window.gamesData;
     if (!dataSet) return null;
     const item = dataSet.find(i => i.id === fav.id);
@@ -59,33 +64,41 @@ function renderFavoritesGrid() {
     return { item, type: fav.type };
   }).filter(Boolean);
 
-  const filteredFavs = fullFavs.filter(fav => {
+  let filteredFavs = fullFavs.filter(fav => {
     if (activeFilter === "all") return true;
     return fav.type === activeFilter;
   });
 
+  const sortVal = sortSelect ? sortSelect.value : "recent";
+  if (sortVal === "rating") {
+    filteredFavs.sort((a, b) => (b.item.rating || 0) - (a.item.rating || 0));
+  } else if (sortVal === "title") {
+    filteredFavs.sort((a, b) => a.item.title.localeCompare(b.item.title));
+  }
+
   if (fullFavs.length === 0) {
     grid.innerHTML = "";
-    filterPanel.style.display = "none";
-    clearBtn.style.display = "none";
-    emptyState.style.display = "block";
+    if (filterPanel) filterPanel.style.display = "flex";
+    if (clearBtn) clearBtn.style.display = "none";
+    if (emptyState) emptyState.style.display = "block";
     return;
   }
 
-  filterPanel.style.display = "block";
-  clearBtn.style.display = "inline-flex";
+  if (filterPanel) filterPanel.style.display = "flex";
+  if (clearBtn) clearBtn.style.display = "inline-flex";
 
   if (filteredFavs.length === 0) {
     grid.innerHTML = "";
-    emptyState.style.display = "block";
-    emptyState.querySelector(".empty-state-title").textContent = `No Favorited ${activeFilter === 'movie' ? 'Movies' : 'Games'}`;
-    emptyState.querySelector(".empty-state-desc").textContent = `You haven't bookmarked any ${activeFilter === 'movie' ? 'movies' : 'games'} in your library yet.`;
+    if (emptyState) {
+      emptyState.style.display = "block";
+      emptyState.querySelector(".empty-state-title").textContent = `No Favorited ${activeFilter === 'movie' ? 'Movies' : 'Games'}`;
+      emptyState.querySelector(".empty-state-desc").textContent = `You haven't bookmarked any ${activeFilter === 'movie' ? 'movies' : 'games'} in your collection yet. Click the heart icon on any card to save it for instant offline access.`;
+    }
     return;
   }
 
-  emptyState.style.display = "none";
+  if (emptyState) emptyState.style.display = "none";
 
-  // Use globally decoupled templates
   grid.innerHTML = filteredFavs.map(fav => {
     if (fav.type === "movie") return window.CinePlay.createMovieCardHTML(fav.item);
     return window.CinePlay.createGameCardHTML(fav.item);
