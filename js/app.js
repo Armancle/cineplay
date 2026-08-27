@@ -25,64 +25,41 @@ document.addEventListener("DOMContentLoaded", () => {
    1. Simulated API Client (Decoupled Data Layer)
    ========================================================================== */
 const CinePlayAPI = {
-  // Simulates an async fetch for movies. Easily swappable for TMDB API endpoints.
-  async fetchMovies({ query = "", genre = "All", sortBy = "rating-desc", page = 1, limit = 8 } = {}) {
-    await simulateNetworkDelay(250);
-
+  // Fetches movies via CinePlayDataManager (TMDB -> Firestore -> Local Fallback)
+  async fetchMovies(params = {}) {
+    if (window.CinePlayDataManager) {
+      return await window.CinePlayDataManager.fetchMovies(params);
+    }
+    // Fallback to local
     let movies = window.moviesData ? [...window.moviesData] : [];
-
-    if (query) {
-      movies = CinePlay.searchItems(movies, query);
-    }
-    if (genre !== "All") {
-      movies = CinePlay.filterByGenre(movies, genre);
-    }
-
-    CinePlay.sortItems(movies, sortBy);
-
-    const start = 0;
-    const end = page * limit;
-    const paginated = movies.slice(start, end);
-
-    return {
-      results: paginated,
-      total: movies.length,
-      hasMore: end < movies.length
-    };
+    if (params.query) movies = CinePlay.searchItems(movies, params.query);
+    if (params.genre && params.genre !== "All") movies = CinePlay.filterByGenre(movies, params.genre);
+    CinePlay.sortItems(movies, params.sortBy || "rating-desc");
+    const limit = params.limit || 8;
+    const page = params.page || 1;
+    const paginated = movies.slice(0, page * limit);
+    return { results: paginated, total: movies.length, hasMore: (page * limit) < movies.length };
   },
 
-  // Simulates an async fetch for games. Easily swappable for RAWG API endpoints.
-  async fetchGames({ query = "", genre = "All", platform = "All", sortBy = "rating-desc", page = 1, limit = 8 } = {}) {
-    await simulateNetworkDelay(250);
-
+  // Fetches games via CinePlayDataManager (Steam -> Firestore -> Local Fallback)
+  async fetchGames(params = {}) {
+    if (window.CinePlayDataManager) {
+      return await window.CinePlayDataManager.fetchGames(params);
+    }
     let games = window.gamesData ? [...window.gamesData] : [];
-
-    if (query) {
-      games = CinePlay.searchItems(games, query);
-    }
-    if (genre !== "All") {
-      games = CinePlay.filterByGenre(games, genre);
-    }
-    if (platform !== "All") {
-      games = games.filter(game => game.platform && game.platform.includes(platform));
-    }
-
-    CinePlay.sortItems(games, sortBy);
-
-    const start = 0;
-    const end = page * limit;
-    const paginated = games.slice(start, end);
-
-    return {
-      results: paginated,
-      total: games.length,
-      hasMore: end < games.length
-    };
+    if (params.query) games = CinePlay.searchItems(games, params.query);
+    if (params.genre && params.genre !== "All") games = CinePlay.filterByGenre(games, params.genre);
+    if (params.platform && params.platform !== "All") games = games.filter(g => g.platform && g.platform.includes(params.platform));
+    CinePlay.sortItems(games, params.sortBy || "rating-desc");
+    const limit = params.limit || 8;
+    const page = params.page || 1;
+    const paginated = games.slice(0, page * limit);
+    return { results: paginated, total: games.length, hasMore: (page * limit) < games.length };
   },
 
-  // Simulates recommendations calculation.
+  // Recommendations calculation engine
   async fetchRecommendations(criteria) {
-    await simulateNetworkDelay(800); // Shimmer delay for matching simulation
+    await simulateNetworkDelay(400);
     return CinePlay.getRecommendations(criteria);
   }
 };
@@ -186,36 +163,50 @@ function getRecommendations({ contentType = "movie", mood = "Action-packed", gen
    ========================================================================== */
 
 // Renders list of movie cards into specified container
-function renderMovies(movies, containerElement) {
+function renderMovies(movies, containerElement, append = false) {
   if (!containerElement) return;
   if (movies.length === 0) {
-    containerElement.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-secondary);">No movies found matching your criteria.</div>`;
+    if (!append) containerElement.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-secondary);">No movies found matching your criteria.</div>`;
     return;
   }
-  containerElement.innerHTML = movies.map(movie => createMovieCardHTML(movie)).join("");
+  const cardsHtml = movies.map(movie => createMovieCardHTML(movie)).join("");
+  if (append) {
+    containerElement.insertAdjacentHTML("beforeend", cardsHtml);
+  } else {
+    containerElement.innerHTML = cardsHtml;
+  }
   bindCardClickEvents(containerElement, "movie");
 }
 
 // Renders list of game cards into specified container
-function renderGames(games, containerElement) {
+function renderGames(games, containerElement, append = false) {
   if (!containerElement) return;
   if (games.length === 0) {
-    containerElement.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-secondary);">No games found matching your criteria.</div>`;
+    if (!append) containerElement.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-secondary);">No games found matching your criteria.</div>`;
     return;
   }
-  containerElement.innerHTML = games.map(game => createGameCardHTML(game)).join("");
+  const cardsHtml = games.map(game => createGameCardHTML(game)).join("");
+  if (append) {
+    containerElement.insertAdjacentHTML("beforeend", cardsHtml);
+  } else {
+    containerElement.innerHTML = cardsHtml;
+  }
   bindCardClickEvents(containerElement, "game");
 }
 
 // Dynamic templates
 function createMovieCardHTML(movie) {
   const isFav = isFavorite(movie.id);
-  const streamingBadges = movie.streaming ? movie.streaming.slice(0, 2).map(s => `<span class="streaming-badge">${s}</span>`).join("") : "";
+  const streamingBadges = movie.providers && movie.providers.IN && movie.providers.IN.flatrate
+    ? movie.providers.IN.flatrate.slice(0, 2).map(s => `<span class="streaming-badge">${s.name}</span>`).join("")
+    : (movie.streaming ? movie.streaming.slice(0, 2).map(s => `<span class="streaming-badge">${s}</span>`).join("") : "");
+
+  const trailerKey = movie.trailerKey || movie.trailer || "dQw4w9WgXcQ";
 
   return `
     <article class="media-card" data-id="${movie.id}" data-type="movie">
       <div class="card-img-wrapper shimmer-wrapper">
-        <img src="${movie.poster}" alt="${movie.title}" class="card-img" loading="lazy" onerror="CinePlay.movieImgFallback(this, '${movie.title}')">
+        <img src="${movie.poster}" alt="${movie.title}" class="card-img" loading="lazy" onerror="CinePlay.movieImgFallback(this, '${movie.title.replace(/'/g, "\\'")}')">
         <div class="card-rating-badge"><i class="fa-solid fa-star"></i> ${movie.rating}</div>
         <button class="card-favorite-btn ${isFav ? 'active' : ''}" aria-label="Favorite button" onclick="event.stopPropagation(); CinePlay.handleFavoriteAction(this, '${movie.id}', 'movie')">
           <i class="${isFav ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
@@ -225,16 +216,16 @@ function createMovieCardHTML(movie) {
       <div class="card-content">
         <div class="card-meta">
           <span>${movie.year}</span>
-          <span>${movie.runtime} mins</span>
+          <span>${movie.runtime || movie.duration || '120m'}</span>
         </div>
         <h3 class="card-title">${movie.title}</h3>
         <div class="card-genres">
-          ${movie.genre.slice(0, 3).map(g => `<span class="card-genre-tag">${g}</span>`).join("")}
+          ${(movie.genres || movie.genre || ["Action"]).slice(0, 3).map(g => `<span class="card-genre-tag">${g}</span>`).join("")}
         </div>
-        <p class="card-desc">${movie.description}</p>
+        <p class="card-desc">${movie.overview || movie.description || 'No overview available.'}</p>
         <div style="display: flex; gap: 8px; margin-top: 10px;">
           <button class="card-btn" style="flex: 1;">Details</button>
-          ${movie.trailer ? `<button class="card-btn btn-outline" style="padding: 0 12px; border-radius: 8px;" title="Watch Trailer" onclick="event.stopPropagation(); CinePlay.openTrailerModal('${movie.trailer}', '${movie.title.replace(/'/g, "\\'")}')"><i class="fa-solid fa-play"></i></button>` : ''}
+          <button class="card-btn btn-outline" style="padding: 0 12px; border-radius: 8px;" title="Watch Trailer" onclick="event.stopPropagation(); CinePlay.openTrailerModal('${trailerKey}', '${movie.title.replace(/'/g, "\\'")}')"><i class="fa-solid fa-play"></i></button>
         </div>
         ${streamingBadges ? `<div class="streaming-list">${streamingBadges}</div>` : ''}
       </div>
@@ -444,15 +435,57 @@ function openDetailsModal(item, type) {
     <li><strong>Mood Vibe:</strong> ${item.mood ? item.mood.join(" • ") : "N/A"}</li>
   `;
   if (type === "movie") {
-    if (item.director) metaHtml += `<li><strong>Director:</strong> ${item.director}</li>`;
+    if (item.director) metaHtml += `<li><strong>Director:</strong> <a href="movies.html?director=${encodeURIComponent(item.director)}" style="color: var(--accent-red); text-decoration: underline;">${item.director}</a></li>`;
     if (item.cast) metaHtml += `<li><strong>Cast:</strong> ${item.cast}</li>`;
-    if (item.streaming) {
-      metaHtml += `<li><strong>Watch On:</strong> <span class="streaming-list">${item.streaming.map(s => `<span class="streaming-badge">${s}</span>`).join("")}</span></li>`;
-    }
+    if (item.language) metaHtml += `<li><strong>Language:</strong> ${item.language}</li>`;
+    if (item.country) metaHtml += `<li><strong>Country:</strong> ${item.country}</li>`;
   } else if (type === "game") {
     metaHtml += `<li><strong>Platforms:</strong> ${item.platform.join(", ")}</li>`;
     if (item.developer) metaHtml += `<li><strong>Developer:</strong> ${item.developer}</li>`;
+    if (item.publisher) metaHtml += `<li><strong>Publisher:</strong> ${item.publisher}</li>`;
+    if (item.price) metaHtml += `<li><strong>Price:</strong> <span style="color: #4ade80; font-weight: 700;">${item.price}</span></li>`;
+    if (item.tags) metaHtml += `<li><strong>Tags:</strong> ${item.tags.join(" • ")}</li>`;
+    if (item.sysReq) {
+      metaHtml += `
+        <li style="margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 8px;">
+          <strong>System Requirements:</strong>
+          <div style="font-size: 11px; color: var(--text-muted); margin-top: 40px; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 6px;">
+            <div><strong>Min:</strong> ${item.sysReq.minimum}</div>
+            <div style="margin-top: 4px;"><strong>Rec:</strong> ${item.sysReq.recommended}</div>
+          </div>
+        </li>
+      `;
+    }
   }
+
+  // Where to Watch Section for Movies
+  if (type === "movie") {
+    const providers = window.providersData || [
+      { name: "Netflix", type: "STREAM", icon: "fa-solid fa-play", color: "#e50914" },
+      { name: "Prime Video", type: "STREAM", icon: "fa-solid fa-film", color: "#00a8e1" },
+      { name: "Disney+", type: "STREAM", icon: "fa-solid fa-sparkles", color: "#113ccf" },
+      { name: "Apple TV", type: "RENT", icon: "fa-brands fa-apple", color: "#ffffff" }
+    ];
+    metaHtml += `
+      <div class="provider-section">
+        <div class="provider-header">
+          <span class="provider-title"><i class="fa-solid fa-tv" style="color: var(--accent-red); margin-right: 6px;"></i> Where to Watch</span>
+          <span style="font-size: 11px; color: var(--text-muted);">Region: <strong>🌐 India</strong></span>
+        </div>
+        <div class="provider-grid">
+          ${providers.slice(0, 4).map(p => `
+            <a href="#" onclick="showToast('Redirecting to ${p.name}...', 'fa-external-link'); return false;" class="provider-card">
+              <i class="${p.icon}" style="color: ${p.color}; font-size: 18px;"></i>
+              <span class="provider-name">${p.name}</span>
+              <span class="provider-type-badge">${p.type}</span>
+            </a>
+          `).join("")}
+        </div>
+        <p style="font-size: 11px; color: var(--text-muted); margin-top: 8px;">Availability may vary by region.</p>
+      </div>
+    `;
+  }
+
   infoDetails.innerHTML = metaHtml;
 
   const isFav = isFavorite(item.id);
@@ -466,6 +499,9 @@ function openDetailsModal(item, type) {
       <i class="${isFav ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
       ${isFav ? 'Favorited' : 'Add to Watchlist'}
     </button>
+    <button class="btn btn-outline" id="modal-dislike-btn" title="Show fewer recommendations like this">
+      <i class="fa-solid fa-thumbs-down"></i> Not for me
+    </button>
   `;
 
   const playBtn = document.getElementById("modal-play-btn");
@@ -476,17 +512,27 @@ function openDetailsModal(item, type) {
   }
 
   const favBtn = document.getElementById("modal-fav-btn");
-  favBtn.addEventListener("click", () => {
-    const isNowFav = toggleFavorite(item.id, type);
-    const favIcon = favBtn.querySelector("i");
-    if (isNowFav) {
-      favIcon.className = "fa-solid fa-heart";
-      favBtn.innerHTML = '<i class="fa-solid fa-heart"></i> Favorited';
-    } else {
-      favIcon.className = "fa-regular fa-heart";
-      favBtn.innerHTML = '<i class="fa-regular fa-heart"></i> Add to Watchlist';
-    }
-  });
+  if (favBtn) {
+    favBtn.addEventListener("click", () => {
+      const isNowFav = toggleFavorite(item.id, type);
+      const favIcon = favBtn.querySelector("i");
+      if (isNowFav) {
+        favIcon.className = "fa-solid fa-heart";
+        favBtn.innerHTML = '<i class="fa-solid fa-heart"></i> Favorited';
+      } else {
+        favIcon.className = "fa-regular fa-heart";
+        favBtn.innerHTML = '<i class="fa-regular fa-heart"></i> Add to Watchlist';
+      }
+    });
+  }
+
+  const dislikeBtn = document.getElementById("modal-dislike-btn");
+  if (dislikeBtn) {
+    dislikeBtn.addEventListener("click", () => {
+      markAsDisliked(item.id, item.title);
+      closeModal();
+    });
+  }
 
   globalModal.classList.add("active");
   document.body.style.overflow = "hidden";
@@ -879,6 +925,7 @@ function initFloatingMatchBtn() {
    ========================================================================== */
 function initLiveSearchAutoSuggestions() {
   const searchInputs = document.querySelectorAll(".search-input");
+  
   searchInputs.forEach(input => {
     const wrapper = input.closest(".search-input-wrapper");
     if (!wrapper) return;
@@ -890,45 +937,76 @@ function initLiveSearchAutoSuggestions() {
       wrapper.appendChild(dropdown);
     }
 
+    let searchTimer = null;
+
     input.addEventListener("input", () => {
+      clearTimeout(searchTimer);
       const q = input.value.trim().toLowerCase();
       if (q.length < 2) {
         dropdown.classList.remove("active");
         return;
       }
 
-      const allItems = [
-        ...window.moviesData.map(m => ({ ...m, type: "movie" })),
-        ...window.gamesData.map(g => ({ ...g, type: "game" }))
-      ];
+      searchTimer = setTimeout(async () => {
+        let matches = [];
 
-      const matches = allItems.filter(item => 
-        item.title.toLowerCase().includes(q) ||
-        (item.genre && item.genre.some(g => g.toLowerCase().includes(q)))
-      ).slice(0, 5);
+        // 1. Check local dataset
+        const localMovies = (window.moviesData || []).filter(m => m.title.toLowerCase().includes(q)).map(m => ({ ...m, type: "movie" }));
+        const localGames = (window.gamesData || []).filter(g => g.title.toLowerCase().includes(q)).map(g => ({ ...g, type: "game" }));
+        matches = [...localMovies, ...localGames];
 
-      if (matches.length === 0) {
-        dropdown.classList.remove("active");
-        return;
-      }
+        // 2. Fetch live TMDB results if API service is available
+        if (window.CinePlayAPIService) {
+          try {
+            const tmdbRes = await window.CinePlayAPIService.searchTMDBMovies(q);
+            if (tmdbRes && tmdbRes.results && tmdbRes.results.length > 0) {
+              const tmdbMatches = tmdbRes.results.slice(0, 4).map(m => window.CinePlayAPIService.normalizeMovie(m));
+              tmdbMatches.forEach(tm => {
+                if (!matches.some(item => item.title.toLowerCase() === tm.title.toLowerCase())) {
+                  matches.push(tm);
+                }
+              });
+            }
+          } catch (e) {
+            console.warn("Live search TMDB fetch error:", e);
+          }
+        }
 
-      dropdown.innerHTML = matches.map(item => `
-        <div class="suggestion-item" onclick="CinePlay.openFeaturedItem('${item.id}'); this.parentElement.classList.remove('active');">
-          <img src="${item.poster || item.cover}" alt="${item.title}" class="suggestion-thumb" onerror="this.src='https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=100&auto=format&fit=crop'">
-          <div>
-            <div class="suggestion-title">${item.title}</div>
-            <div class="suggestion-meta"><i class="fa-solid fa-star" style="color: var(--rating-yellow);"></i> ${item.rating} • ${item.year} • <span style="text-transform: capitalize;">${item.type}</span></div>
-          </div>
-        </div>
-      `).join("");
+        if (matches.length === 0) {
+          dropdown.classList.remove("active");
+          return;
+        }
 
-      dropdown.classList.add("active");
+        dropdown.innerHTML = matches.slice(0, 6).map(item => {
+          const safeTitle = (item.title || item.name || "Untitled").replace(/'/g, "\\'");
+          const thumb = item.poster || item.cover || "images/posters/m1.jpg";
+          const rating = item.rating || item.tmdbRating || 8.0;
+          const year = item.year || 2024;
+          const type = item.type || "movie";
+
+          return `
+            <div class="suggestion-item" onclick="CinePlay.openDetailsModal(${JSON.stringify(item).replace(/"/g, '&quot;')}, '${type}'); this.parentElement.classList.remove('active');">
+              <img src="${thumb}" alt="${safeTitle}" class="suggestion-thumb" onerror="this.src='images/posters/m1.jpg'">
+              <div>
+                <div class="suggestion-title">${item.title || item.name}</div>
+                <div class="suggestion-meta"><i class="fa-solid fa-star" style="color: var(--rating-yellow);"></i> ${rating} • ${year} • <span style="text-transform: uppercase; font-size: 10px; font-weight: 700; color: var(--accent-red);">${type}</span></div>
+              </div>
+            </div>
+          `;
+        }).join("");
+
+        dropdown.classList.add("active");
+      }, 250);
     });
 
     document.addEventListener("click", (e) => {
       if (!wrapper.contains(e.target)) {
         dropdown.classList.remove("active");
       }
+    });
+
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") dropdown.classList.remove("active");
     });
   });
 }
@@ -1258,6 +1336,243 @@ function syncFavoritesIcons(container) {
   });
 }
 
+/* ==========================================================================
+   Universal Search Overlay Engine
+   ========================================================================== */
+function initUniversalSearch() {
+  let searchOverlay = document.getElementById("universal-search-overlay");
+  if (!searchOverlay) {
+    searchOverlay = document.createElement("div");
+    searchOverlay.id = "universal-search-overlay";
+    searchOverlay.className = "search-overlay";
+    searchOverlay.innerHTML = `
+      <div class="search-overlay-header">
+        <i class="fa-solid fa-magnifying-glass" style="font-size: 24px; color: var(--accent-red);"></i>
+        <input type="text" id="universal-search-input" class="search-overlay-input" placeholder="Search CinePlay movies, games, actors, directors..." autocomplete="off">
+        <button class="search-overlay-close" id="universal-search-close" aria-label="Close Search"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="search-overlay-results" id="universal-search-results">
+        <div style="text-align: center; color: var(--text-muted); margin-top: 40px;">
+          <i class="fa-solid fa-clapperboard" style="font-size: 40px; margin-bottom: 10px; color: var(--accent-red);"></i>
+          <p>Type to search across movies, games, actors, and directors...</p>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(searchOverlay);
+  }
+
+  const closeBtn = document.getElementById("universal-search-close");
+  if (closeBtn) {
+    closeBtn.addEventListener("click", () => searchOverlay.classList.remove("active"));
+  }
+
+  // Keyboard shortcut Ctrl+K or / to open
+  document.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+      e.preventDefault();
+      openUniversalSearch();
+    } else if (e.key === "Escape" && searchOverlay.classList.contains("active")) {
+      searchOverlay.classList.remove("active");
+    }
+  });
+
+  const input = document.getElementById("universal-search-input");
+  if (input) {
+    input.addEventListener("input", (e) => handleUniversalSearch(e.target.value));
+  }
+}
+
+function openUniversalSearch(initialQuery = "") {
+  initUniversalSearch();
+  const searchOverlay = document.getElementById("universal-search-overlay");
+  const input = document.getElementById("universal-search-input");
+  if (searchOverlay && input) {
+    searchOverlay.classList.add("active");
+    input.value = initialQuery;
+    input.focus();
+    if (initialQuery) handleUniversalSearch(initialQuery);
+  }
+}
+
+function handleUniversalSearch(query) {
+  const container = document.getElementById("universal-search-results");
+  if (!container) return;
+  const q = query.toLowerCase().trim();
+
+  if (!q) {
+    container.innerHTML = `
+      <div style="text-align: center; color: var(--text-muted); margin-top: 40px;">
+        <i class="fa-solid fa-clapperboard" style="font-size: 40px; margin-bottom: 10px; color: var(--accent-red);"></i>
+        <p>Type to search across movies, games, actors, and directors...</p>
+      </div>
+    `;
+    return;
+  }
+
+  const movies = (window.moviesData || []).filter(m => m.title.toLowerCase().includes(q) || (m.genre && m.genre.some(g => g.toLowerCase().includes(q))));
+  const games = (window.gamesData || []).filter(g => g.title.toLowerCase().includes(q) || (g.genre && g.genre.some(gen => gen.toLowerCase().includes(q))));
+  const actors = (window.actorsData || []).filter(a => a.name.toLowerCase().includes(q) || a.knownFor.toLowerCase().includes(q));
+  const directors = (window.directorsData || []).filter(d => d.name.toLowerCase().includes(q) || d.knownFor.toLowerCase().includes(q));
+
+  if (movies.length === 0 && games.length === 0 && actors.length === 0 && directors.length === 0) {
+    container.innerHTML = `
+      <div style="text-align: center; color: var(--text-muted); margin-top: 40px;">
+        <i class="fa-solid fa-ghost" style="font-size: 40px; margin-bottom: 10px; color: var(--accent-red);"></i>
+        <h3>No matching results found</h3>
+        <p style="font-size: 13px;">Try searching for a different keyword, title, actor, or genre.</p>
+      </div>
+    `;
+    return;
+  }
+
+  let html = "";
+
+  if (movies.length > 0) {
+    html += `
+      <div class="search-category-group">
+        <h4><i class="fa-solid fa-film"></i> Movies (${movies.length})</h4>
+        <div class="search-results-grid">
+          ${movies.slice(0, 6).map(m => `
+            <div class="search-result-card" onclick="CinePlay.openDetailsModal(window.moviesData.find(x => x.id === '${m.id}'), 'movie'); document.getElementById('universal-search-overlay').classList.remove('active');">
+              <img src="${m.poster}" alt="${m.title}" onerror="this.src='images/posters/m1.jpg'">
+              <div class="search-result-info">
+                <div class="search-result-title">${m.title}</div>
+                <div class="search-result-sub">⭐ ${m.rating} • ${m.year} • ${m.genre ? m.genre[0] : ''}</div>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    `;
+  }
+
+  if (games.length > 0) {
+    html += `
+      <div class="search-category-group">
+        <h4><i class="fa-solid fa-gamepad"></i> Games (${games.length})</h4>
+        <div class="search-results-grid">
+          ${games.slice(0, 6).map(g => `
+            <div class="search-result-card" onclick="CinePlay.openDetailsModal(window.gamesData.find(x => x.id === '${g.id}'), 'game'); document.getElementById('universal-search-overlay').classList.remove('active');">
+              <img src="${g.cover}" alt="${g.title}" onerror="this.src='images/posters/g1.jpg'">
+              <div class="search-result-info">
+                <div class="search-result-title">${g.title}</div>
+                <div class="search-result-sub">⭐ ${g.rating} • ${g.year} • ${g.price || 'Free'}</div>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    `;
+  }
+
+  if (actors.length > 0) {
+    html += `
+      <div class="search-category-group">
+        <h4><i class="fa-solid fa-user-astronaut"></i> People / Cast (${actors.length})</h4>
+        <div class="search-results-grid">
+          ${actors.map(a => `
+            <div class="search-result-card" onclick="window.location.href='movies.html?actor=' + encodeURIComponent('${a.name}')">
+              <img src="${a.image}" alt="${a.name}" style="border-radius: 50%;">
+              <div class="search-result-info">
+                <div class="search-result-title">${a.name}</div>
+                <div class="search-result-sub">${a.role} • ${a.knownFor}</div>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    `;
+  }
+
+  if (directors.length > 0) {
+    html += `
+      <div class="search-category-group">
+        <h4><i class="fa-solid fa-video"></i> Directors (${directors.length})</h4>
+        <div class="search-results-grid">
+          ${directors.map(d => `
+            <div class="search-result-card" onclick="window.location.href='movies.html?director=' + encodeURIComponent('${d.name}')">
+              <img src="${d.image}" alt="${d.name}" style="border-radius: 50%;">
+              <div class="search-result-info">
+                <div class="search-result-title">${d.name}</div>
+                <div class="search-result-sub">Director • ${d.knownFor}</div>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    `;
+  }
+
+  container.innerHTML = html;
+}
+
+/* ==========================================================================
+   Surprise Me Event Modal
+   ========================================================================== */
+function triggerSurpriseMe() {
+  const pool = [...(window.moviesData || []), ...(window.gamesData || [])];
+  if (pool.length === 0) return;
+  const randomPick = pool[Math.floor(Math.random() * pool.length)];
+  const isMovie = randomPick.id.startsWith("m");
+
+  let surpriseModal = document.getElementById("surprise-me-modal");
+  if (!surpriseModal) {
+    surpriseModal = document.createElement("div");
+    surpriseModal.id = "surprise-me-modal";
+    surpriseModal.className = "modal-overlay";
+    document.body.appendChild(surpriseModal);
+  }
+
+  surpriseModal.innerHTML = `
+    <div class="modal-content glass-panel" style="max-width: 500px; text-align: center; padding: 40px 30px; position: relative;">
+      <button class="modal-close" onclick="document.getElementById('surprise-me-modal').classList.remove('active')">&times;</button>
+      <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--accent-red); letter-spacing: 2px; margin-bottom: 10px;">
+        <i class="fa-solid fa-dice-five"></i> Tonight's Wild Card
+      </div>
+      <h2 style="font-size: 24px; font-weight: 800; margin-bottom: 15px; color: #fff;">${randomPick.title}</h2>
+      <img src="${isMovie ? randomPick.poster : randomPick.cover}" alt="${randomPick.title}" style="max-width: 200px; border-radius: 12px; margin: 0 auto 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.6);" onerror="this.src='images/posters/m1.jpg'">
+      <div style="display: flex; justify-content: center; gap: 10px; margin-bottom: 15px;">
+        <span class="modal-badge rating"><i class="fa-solid fa-star"></i> ${randomPick.rating}</span>
+        <span class="modal-badge">${randomPick.year}</span>
+        <span class="modal-badge" style="background: rgba(229, 9, 20, 0.2); color: #fff;">${isMovie ? 'Movie' : 'Game'}</span>
+      </div>
+      <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 25px; line-height: 1.5;">${randomPick.description}</p>
+      <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+        <button class="btn btn-primary" onclick="CinePlay.openDetailsModal(window.${isMovie ? 'moviesData' : 'gamesData'}.find(x => x.id === '${randomPick.id}'), '${isMovie ? 'movie' : 'game'}'); document.getElementById('surprise-me-modal').classList.remove('active');">
+          <i class="fa-solid fa-circle-info"></i> View Details
+        </button>
+        <button class="btn btn-outline" onclick="triggerSurpriseMe()">
+          <i class="fa-solid fa-dice"></i> Try Again
+        </button>
+      </div>
+    </div>
+  `;
+
+  surpriseModal.classList.add("active");
+}
+
+/* ==========================================================================
+   Dislike Learner System
+   ========================================================================== */
+function markAsDisliked(itemId, title) {
+  let dislikes = JSON.parse(localStorage.getItem("cineplay_dislikes") || "[]");
+  if (!dislikes.includes(itemId)) {
+    dislikes.push(itemId);
+    localStorage.setItem("cineplay_dislikes", JSON.stringify(dislikes));
+  }
+  showToast(`Got it. We'll show you fewer recommendations like "${title}".`, "fa-thumbs-down");
+}
+
+function renderSkeletonCardsHTML(count = 4) {
+  return Array(count).fill(0).map(() => `
+    <div class="skeleton-card">
+      <div class="skeleton-box" style="height: 240px;"></div>
+      <div class="skeleton-box" style="height: 20px; width: 80%;"></div>
+      <div class="skeleton-box" style="height: 14px; width: 60%;"></div>
+    </div>
+  `).join("");
+}
+
 // Global exposes for detail modals in slides or cards
 window.openFeaturedItem = function(id) {
   const type = id.startsWith("m") ? "movie" : "game";
@@ -1293,6 +1608,10 @@ window.CinePlay = {
   openMoodQuizModal,
   closeMoodQuizModal,
   showToast,
+  openUniversalSearch,
+  triggerSurpriseMe,
+  markAsDisliked,
+  renderSkeletonCardsHTML,
 
   // Fallbacks
   movieImgFallback,
@@ -1310,3 +1629,4 @@ window.CinePlay = {
 
 // Expose API Client globally
 window.CinePlayAPI = CinePlayAPI;
+
