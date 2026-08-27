@@ -11,7 +11,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Modern UI Components
   initMoodQuizModal();
-  initFloatingMatchBtn();
   initVideoTrailerModal();
   initLiveSearchAutoSuggestions();
 
@@ -1697,48 +1696,25 @@ function handleUniversalSearch(query) {
 }
 
 /* ==========================================================================
-   Surprise Me Event Modal
+   Surprise Me Event Feature
    ========================================================================== */
 function triggerSurpriseMe() {
   const pool = [...(window.moviesData || []), ...(window.gamesData || [])];
-  if (pool.length === 0) return;
-  const randomPick = pool[Math.floor(Math.random() * pool.length)];
-  const isMovie = randomPick.id.startsWith("m");
-
-  let surpriseModal = document.getElementById("surprise-me-modal");
-  if (!surpriseModal) {
-    surpriseModal = document.createElement("div");
-    surpriseModal.id = "surprise-me-modal";
-    surpriseModal.className = "modal-overlay";
-    document.body.appendChild(surpriseModal);
+  if (pool.length === 0) {
+    showToast("Finding something amazing for you...", "fa-dice");
+    return;
   }
 
-  surpriseModal.innerHTML = `
-    <div class="modal-content glass-panel" style="max-width: 500px; text-align: center; padding: 40px 30px; position: relative;">
-      <button class="modal-close" onclick="document.getElementById('surprise-me-modal').classList.remove('active')">&times;</button>
-      <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--accent-red); letter-spacing: 2px; margin-bottom: 10px;">
-        <i class="fa-solid fa-dice-five"></i> Tonight's Wild Card
-      </div>
-      <h2 style="font-size: 24px; font-weight: 800; margin-bottom: 15px; color: #fff;">${randomPick.title}</h2>
-      <img src="${isMovie ? randomPick.poster : randomPick.cover}" alt="${randomPick.title}" style="max-width: 200px; border-radius: 12px; margin: 0 auto 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.6);" onerror="this.src='images/posters/m1.jpg'">
-      <div style="display: flex; justify-content: center; gap: 10px; margin-bottom: 15px;">
-        <span class="modal-badge rating"><i class="fa-solid fa-star"></i> ${randomPick.rating}</span>
-        <span class="modal-badge">${randomPick.year}</span>
-        <span class="modal-badge" style="background: rgba(229, 9, 20, 0.2); color: #fff;">${isMovie ? 'Movie' : 'Game'}</span>
-      </div>
-      <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 25px; line-height: 1.5;">${randomPick.description}</p>
-      <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
-        <button class="btn btn-primary" onclick="CinePlay.openDetailsModal(window.${isMovie ? 'moviesData' : 'gamesData'}.find(x => x.id === '${randomPick.id}'), '${isMovie ? 'movie' : 'game'}'); document.getElementById('surprise-me-modal').classList.remove('active');">
-          <i class="fa-solid fa-circle-info"></i> View Details
-        </button>
-        <button class="btn btn-outline" onclick="triggerSurpriseMe()">
-          <i class="fa-solid fa-dice"></i> Try Again
-        </button>
-      </div>
-    </div>
-  `;
+  // Pick random item
+  const randomPick = pool[Math.floor(Math.random() * pool.length)];
+  const isMovie = !randomPick.platform;
+  const type = isMovie ? "movie" : "game";
 
-  surpriseModal.classList.add("active");
+  showToast(`🎲 Tonight's Wild Card: ${randomPick.title}!`, "fa-dice-d20");
+
+  setTimeout(() => {
+    openDetailsModal(randomPick, type);
+  }, 250);
 }
 
 /* ==========================================================================

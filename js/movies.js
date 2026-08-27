@@ -170,25 +170,22 @@ function initMoviesPage() {
 
   function setModeTab(mode) {
     [tabMovies, tabActors, tabDirectors].forEach(t => {
-      if (t) {
-        t.classList.remove("btn-primary", "active");
-        t.classList.add("btn-outline");
-      }
+      if (t) t.classList.remove("active");
     });
 
     const moviesGrid = document.getElementById("movies-grid");
     if (mode === "movies") {
-      if (tabMovies) { tabMovies.classList.add("btn-primary", "active"); tabMovies.classList.remove("btn-outline"); }
+      if (tabMovies) tabMovies.classList.add("active");
       if (peopleSection) peopleSection.style.display = "none";
       if (moviesGrid) moviesGrid.style.display = "grid";
       loadMoviesGrid(true);
     } else if (mode === "actors") {
-      if (tabActors) { tabActors.classList.add("btn-primary", "active"); tabActors.classList.remove("btn-outline"); }
+      if (tabActors) tabActors.classList.add("active");
       if (peopleSection) peopleSection.style.display = "block";
       if (moviesGrid) moviesGrid.style.display = "none";
       renderPeopleGrid(window.actorsData || [], "Actor & Actress Finder", "Select a performer to view their filmography.");
     } else if (mode === "directors") {
-      if (tabDirectors) { tabDirectors.classList.add("btn-primary", "active"); tabDirectors.classList.remove("btn-outline"); }
+      if (tabDirectors) tabDirectors.classList.add("active");
       if (peopleSection) peopleSection.style.display = "block";
       if (moviesGrid) moviesGrid.style.display = "none";
       renderPeopleGrid(window.directorsData || [], "Director Finder", "Select a director to view their filmography.");

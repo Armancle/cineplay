@@ -231,6 +231,34 @@
     transform: translateX(50%) !important;
   }
 
+  /* Section and Page Headers on Mobile */
+  .section-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .section-header .btn {
+    padding: 8px 16px;
+    font-size: 12.5px;
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+
+  /* Mode Tabs Bar on Mobile */
+  .mode-tabs-bar {
+    gap: 8px;
+    margin-bottom: 18px;
+    padding-bottom: 8px;
+  }
+
+  .mode-tab-btn {
+    padding: 8px 16px;
+    font-size: 12px;
+  }
+
   /* Search Panel Stacked */
   .search-container {
     margin-top: -25px;

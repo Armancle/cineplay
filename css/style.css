@@ -540,12 +540,79 @@ header:not(.sticky) .nav-auth-btn {
   border-radius: 10px;
 }
 
-/* Home Section Layouts */
+/* Section & Page Headers */
 .section-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  margin-bottom: 35px;
+  margin-bottom: 30px;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+/* Modern Segmented Mode Tabs (Movies Catalog, Actor Finder, Director Finder) */
+.mode-tabs-bar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 14px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.mode-tabs-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.mode-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 22px;
+  border-radius: 25px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-color);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.mode-tab-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--accent-red);
+  background: rgba(229, 9, 20, 0.08);
+  transform: translateY(-1px);
+}
+
+.mode-tab-btn.active {
+  background: var(--accent-gradient);
+  color: #ffffff !important;
+  border-color: transparent;
+  box-shadow: 0 4px 15px rgba(229, 9, 20, 0.4);
+}
+
+[data-theme="light"] .mode-tab-btn {
+  background: #ffffff;
+  border: 1.5px solid rgba(0, 0, 0, 0.1);
+  color: #4b5563;
+}
+
+[data-theme="light"] .mode-tab-btn:hover {
+  background: #fef2f2;
+  color: var(--accent-red);
+  border-color: var(--accent-red);
+}
+
+[data-theme="light"] .mode-tab-btn.active {
+  background: var(--accent-gradient);
+  color: #ffffff !important;
+  border-color: transparent;
 }
 
 .section-title {
