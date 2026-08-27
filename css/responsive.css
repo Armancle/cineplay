@@ -54,8 +54,45 @@
 
 @media (max-width: 768px) {
   /* Header Mobile Menu adjustments */
+  .nav-container {
+    padding: 0 12px;
+    gap: 6px;
+  }
+
+  .logo {
+    font-size: 21px;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .nav-actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+    flex-shrink: 0 !important;
+  }
+
   .mobile-menu-btn {
-    display: flex;
+    display: flex !important;
+    width: 36px !important;
+    height: 36px !important;
+    font-size: 16px !important;
+    border-radius: 50% !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid var(--border-color) !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: var(--text-primary) !important;
+    cursor: pointer !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Shrink icon buttons slightly on mobile to save space */
+  .theme-toggle {
+    width: 36px !important;
+    height: 36px !important;
+    font-size: 15px !important;
+    flex-shrink: 0 !important;
   }
 
   .nav-menu {
@@ -113,7 +150,7 @@
 
   .slide-container {
     position: absolute;
-    top: 52%;
+    top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
     width: 92%;
@@ -170,27 +207,28 @@
     white-space: nowrap;
   }
 
-  /* Carousel Arrow Controls cleanly separated from buttons */
+  /* Carousel Arrow Controls positioned at the bottom/end of the poster */
   .carousel-btn {
-    width: 36px;
-    height: 36px;
-    font-size: 14px;
-    top: 32%;
-    transform: translateY(-50%);
+    width: 36px !important;
+    height: 36px !important;
+    font-size: 13px !important;
+    top: auto !important;
+    bottom: 14px !important;
+    transform: none !important;
   }
 
   .carousel-prev {
-    left: 10px;
+    left: 14px !important;
   }
 
   .carousel-next {
-    right: 10px;
+    right: 14px !important;
   }
 
   .carousel-dots {
-    bottom: 18px;
-    right: 50%;
-    transform: translateX(50%);
+    bottom: 22px !important;
+    right: 50% !important;
+    transform: translateX(50%) !important;
   }
 
   /* Search Panel Stacked */
@@ -423,6 +461,10 @@
   }
 
   /* Nav actions and auth on mobile */
+  .btn-search-toggle {
+    display: none !important;
+  }
+
   .nav-actions {
     gap: 6px;
   }

@@ -237,9 +237,16 @@ header:not(.sticky) .nav-auth-btn {
   display: flex;
   align-items: center;
   gap: 15px;
+  flex-shrink: 0;
 }
 
-.theme-toggle, .mobile-menu-btn {
+/* Hamburger is always the last item — never let it get pushed off */
+.mobile-menu-btn {
+  flex-shrink: 0 !important;
+  order: 99;
+}
+
+.theme-toggle, .mobile-menu-btn, .nav-icon-btn {
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -248,10 +255,13 @@ header:not(.sticky) .nav-auth-btn {
   justify-content: center;
   color: var(--text-primary);
   font-size: 18px;
-  transition: background-color var(--transition-speed) ease;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background-color var(--transition-speed) ease, color var(--transition-speed) ease;
 }
 
-.theme-toggle:hover {
+.theme-toggle:hover, .mobile-menu-btn:hover, .nav-icon-btn:hover {
   background-color: var(--border-color);
 }
 
@@ -467,48 +477,50 @@ header:not(.sticky) .nav-auth-btn {
   box-shadow: 0 6px 20px rgba(255, 255, 255, 0.25);
 }
 
-/* Carousel Navigation Arrows */
+/* Carousel Navigation Arrows - Positioned at the bottom/end of the poster */
 .carousel-btn {
   position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 46px;
-  height: 46px;
+  bottom: 25px;
+  top: auto;
+  transform: none;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
-  background: rgba(15, 15, 22, 0.65);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(15, 15, 22, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  font-size: 16px;
   z-index: 20;
   cursor: pointer;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
   transition: all var(--transition-speed) ease;
 }
 
 .carousel-btn:hover {
   background: var(--accent-red);
   border-color: var(--accent-red);
-  transform: translateY(-50%) scale(1.1);
+  transform: scale(1.1);
   box-shadow: 0 0 20px rgba(229, 9, 20, 0.6);
 }
 
 .carousel-prev {
-  left: 20px;
+  left: 25px;
 }
 
 .carousel-next {
-  right: 20px;
+  right: 25px;
 }
 
 .carousel-dots {
   position: absolute;
-  bottom: 30px;
-  right: 5%;
+  bottom: 35px;
+  right: 50%;
+  transform: translateX(50%);
   display: flex;
   gap: 10px;
   z-index: 15;
