@@ -985,7 +985,7 @@ header:not(.sticky) .nav-auth-btn {
   display: flex;
   flex-direction: column;
   height: auto;  /* Changed from 100% to auto */
-  min-height: 0; /* Added */
+  min-height: 200px; /* Added */
   scroll-snap-align: start;
   flex-shrink: 0;
   width: 100%;
@@ -1006,7 +1006,7 @@ header:not(.sticky) .nav-auth-btn {
 .card-img-wrapper {
   position: relative;
   aspect-ratio: 2/3;
-  max-height: 240px; /* Added to cap the image height */
+  max-height: 260px; /* Added to cap the image height */
   overflow: hidden;
   background-color: var(--bg-secondary);
   flex-shrink: 0; /* Added */
@@ -1088,6 +1088,7 @@ header:not(.sticky) .nav-auth-btn {
 }
 
 .card-content {
+  flex: 1;
   padding: 16px;
   display: flex;
   flex-direction: column;
@@ -3110,3 +3111,181 @@ footer {
 .filter-chip-tag:hover {
   background: var(--accent-red);
 }
+
+/* ==========================================================================
+   FIX: Card and Modal Height Overflow Issues
+   ========================================================================== */
+
+/* 1. Fix Movie/Game Cards - Ensure content is always visible */
+.media-card {
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.card-img-wrapper {
+  max-height: 260px !important;
+  min-height: 0 !important;
+  height: auto !important;
+  flex-shrink: 0 !important;
+}
+
+.card-content {
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: visible !important;
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* 2. Fix Modal - Ensure content doesn't get hidden */
+.modal-content {
+  max-height: 90vh !important;
+  height: auto !important;
+  overflow: hidden !important;
+}
+
+.modal-poster {
+  max-height: 400px !important;
+  min-height: 300px !important;
+  height: auto !important;
+}
+
+.modal-body {
+  max-height: none !important;
+  overflow-y: auto !important;
+  flex: 1 !important;
+  min-height: 0 !important;
+}
+
+/* 3. Fix Close Button Position - Always top right */
+.modal-close {
+  position: absolute !important;
+  top: 15px !important;
+  right: 15px !important;
+  z-index: 100 !important;
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 50% !important;
+  background: rgba(0, 0, 0, 0.7) !important;
+  color: #fff !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+/* 4. Ensure modal actions are visible */
+.modal-actions {
+  flex-shrink: 0 !important;
+  margin-top: auto !important;
+  padding-top: 15px !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* 5. Fallback for mobile - ensure modal fits */
+@media (max-width: 768px) {
+  .modal-content {
+    grid-template-columns: 1fr !important;
+    max-height: 95vh !important;
+    overflow-y: auto !important;
+  }
+  
+  .modal-poster {
+    min-height: 200px !important;
+    max-height: 280px !important;
+  }
+  
+  .modal-body {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+}
+
+/* ==========================================================================
+   FIX: Modal Z-Index & Close Button Visibility
+   ========================================================================== */
+
+/* 1. Ensure Details Modal Close Button is ALWAYS visible */
+.modal-close {
+  position: absolute !important;
+  top: 12px !important;
+  right: 12px !important;
+  z-index: 9999 !important;
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 50% !important;
+  background: rgba(0, 0, 0, 0.75) !important;
+  color: #ffffff !important;
+  font-size: 18px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5) !important;
+}
+
+.modal-close:hover {
+  background: var(--accent-red) !important;
+  border-color: var(--accent-red) !important;
+  transform: scale(1.1) !important;
+}
+
+/* 2. Ensure Details Modal is BELOW Trailer Modal in z-index */
+#details-modal.modal {
+  z-index: 10000 !important;
+}
+
+/* 3. Trailer Modal MUST be on TOP of Details Modal */
+.video-modal-overlay {
+  z-index: 20000 !important; /* Higher than details modal (10000) */
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background: rgba(0, 0, 0, 0.95) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  transition: opacity 0.3s ease, visibility 0.3s ease !important;
+}
+
+.video-modal-overlay.active {
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* 4. Ensure close button on trailer modal is also visible */
+#close-trailer-btn {
+  position: relative !important;
+  z-index: 10 !important;
+  background: rgba(255, 255, 255, 0.15) !important;
+  color: #fff !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+}
+
+#close-trailer-btn:hover {
+  background: var(--accent-red) !important;
+}
+
+/* 5. Ensure the trailer modal is scrollable on mobile */
+@media (max-width: 768px) {
+  .video-modal-box {
+    max-height: 90vh !important;
+    overflow-y: auto !important;
+  }
+}
+

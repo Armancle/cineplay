@@ -313,8 +313,8 @@ function createMovieCardHTML(movie) {
         <p class="card-desc">${overview}</p>
         <div style="display: flex; gap: 8px; margin-top: 10px;">
           <button class="card-btn" style="flex: 1;">Details</button>
-          ${trailerKey ? `<button class="card-btn btn-outline" style="padding: 0 12px; border-radius: 8px;" title="Watch Trailer" onclick="event.stopPropagation(); CinePlay.openTrailerModal('${trailerKey}', '${safeTitle}')"><i class="fa-solid fa-play"></i></button>` : ''}
-        </div>
+          <button class="card-btn btn-outline" style="padding: 0 12px; border-radius: 8px;" title="Watch Trailer" onclick="event.stopPropagation(); CinePlay.openMovieTrailer('${movie.id}', '${safeTitle}')"><i class="fa-solid fa-play"></i></button>
+          </div>
         ${streamingBadges ? `<div class="streaming-list">${streamingBadges}</div>` : ''}
       </div>
     </article>
@@ -622,11 +622,9 @@ function openDetailsModal(item, type) {
   const trailerKey = item.trailerKey || item.trailer || "";
   const isFav = isFavorite(item.id);
   actionsContainer.innerHTML = `
-    ${trailerKey ? `
-      <button class="btn btn-primary" id="modal-play-btn">
-        <i class="fa-solid fa-play"></i> Watch Trailer
-      </button>
-    ` : ''}
+    <button class="btn btn-primary" id="modal-play-btn">
+      <i class="fa-solid fa-play"></i> Watch Trailer
+    </button>
     <button class="btn btn-outline" id="modal-fav-btn">
       <i class="${isFav ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
       ${isFav ? 'Favorited' : 'Add to Watchlist'}
@@ -637,8 +635,12 @@ function openDetailsModal(item, type) {
   `;
 
   const playBtn = document.getElementById("modal-play-btn");
-  if (playBtn && trailerKey) {
-    playBtn.addEventListener("click", () => openTrailerModal(trailerKey, item.title));
+  if (playBtn) {
+    if (trailerKey) {
+      playBtn.addEventListener("click", () => openTrailerModal(trailerKey, item.title));
+    } else {
+      playBtn.addEventListener("click", () => openMovieTrailer(item.id, item.title));
+    }
   }
 
   const favBtn = document.getElementById("modal-fav-btn");
@@ -788,6 +790,69 @@ function _buildProviderGrid(item) {
 
   // Honest unavailable state when no provider data exists
   return `<div class="provider-unavailable"><i class="fa-solid fa-circle-info"></i> Streaming availability currently unavailable for this region.</div>`;
+}
+// Universal trailer opener - fetches trailer if not available locally
+async function openMovieTrailer(itemId, title) {
+  // 1. Check if we have the item in registry with trailer
+  let item = window._cineItemRegistry[itemId];
+
+  // 2. Check if trailer exists
+  if (item && (item.trailerKey || item.trailer)) {
+    openTrailerModal(item.trailerKey || item.trailer, title);
+    return;
+  }
+
+  // 3. If no trailer found, show loading toast
+  showToast("Loading trailer...", "fa-spinner fa-spin");
+
+  // 4. Try to fetch from TMDB if it's a TMDB movie
+  if (item && item.tmdbId && window.CinePlayAPIService) {
+    try {
+      const videosData = await window.CinePlayAPIService.getTMDBMovieVideos(item.tmdbId);
+      if (videosData && videosData.results && videosData.results.length > 0) {
+        const trailer = videosData.results.find(v => v.site === "YouTube" && v.type === "Trailer") ||
+          videosData.results.find(v => v.site === "YouTube" && v.type === "Teaser");
+
+        if (trailer && trailer.key) {
+          // Save trailer to item
+          item.trailerKey = trailer.key;
+          item.trailer = trailer.key;
+          window._cineItemRegistry[itemId] = item;
+
+          // Open trailer
+          openTrailerModal(trailer.key, title);
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn("Trailer fetch error:", e);
+    }
+  }
+
+  // 5. Fallback: try searching TMDB for the movie to get ID
+  if (window.CinePlayAPIService) {
+    try {
+      const searchRes = await window.CinePlayAPIService.searchTMDBMovies(title);
+      if (searchRes && searchRes.results && searchRes.results.length > 0) {
+        const tmdbId = String(searchRes.results[0].id);
+        const videosData = await window.CinePlayAPIService.getTMDBMovieVideos(tmdbId);
+        if (videosData && videosData.results && videosData.results.length > 0) {
+          const trailer = videosData.results.find(v => v.site === "YouTube" && v.type === "Trailer") ||
+            videosData.results.find(v => v.site === "YouTube" && v.type === "Teaser");
+
+          if (trailer && trailer.key) {
+            openTrailerModal(trailer.key, title);
+            return;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Trailer search error:", e);
+    }
+  }
+
+  // 6. If all fails, show message
+  showToast("Trailer not available for this title", "fa-circle-info");
 }
 
 // Async enrich open modal with live TMDB data (cast, trailer, providers)
@@ -1449,6 +1514,7 @@ function initMobileMenu() {
   function toggleMenu() {
     navMenu.classList.toggle("active");
     overlay.classList.toggle("active");
+    document.body.classList.toggle("menu-open"); // Add this line
     const icon = menuBtn.querySelector("i");
     icon.className = navMenu.classList.contains("active") ? "fa-solid fa-xmark" : "fa-solid fa-bars";
   }
@@ -2055,6 +2121,7 @@ window.CinePlay = {
   openDetailsModal,
   closeModal,
   openTrailerModal,
+  openMovieTrailer,
   closeTrailerModal,
   openMoodQuizModal,
   closeMoodQuizModal,
