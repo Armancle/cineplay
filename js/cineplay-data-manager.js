@@ -2,13 +2,7 @@
 
 const CinePlayDataManager = {
   // Fetch Movies Pipeline (TMDB -> Firestore -> Local Fallback)
-  // Fetch Movies Pipeline (TMDB -> Firestore -> Local Fallback)
   async fetchMovies({ query = "", genre = "All", sortBy = "popularity-desc", page = 1, limit = 20 } = {}) {
-    let movies = [];
-    let hasMoreResults = false;
-    let totalCount = 0;
-    let apiFailed = false;
-
     try {
       // Build TMDB discover parameters
       const params = { page: page };
@@ -41,29 +35,24 @@ const CinePlayDataManager = {
         apiResponse = await CinePlayAPIService.discoverTMDBMovies(params);
       }
 
-      // Check if we got a valid response
+      // ✅ If API returned data, return it immediately
       if (apiResponse && apiResponse.results && apiResponse.results.length > 0) {
-        hasMoreResults = page < apiResponse.total_pages;
-        totalCount = apiResponse.total_results || apiResponse.results.length;
-        movies = apiResponse.results.slice(0, limit).map(m => CinePlayAPIService.normalizeMovie(m)).filter(Boolean);
-
-        // Cache in Firestore
+        const movies = apiResponse.results.slice(0, limit).map(m => CinePlayAPIService.normalizeMovie(m)).filter(Boolean);
         movies.forEach(m => CinePlayFirestoreService.saveMovie(m));
-
-        console.log(`[CinePlayDataManager] ✅ API returned ${movies.length} movies`);
-        return { results: movies, total: totalCount, hasMore: hasMoreResults };
-      } else {
-        console.warn("[CinePlayDataManager] ⚠️ API returned empty or no results");
-        apiFailed = true;
+        console.log(`[CinePlayDataManager] ✅ API returned ${movies.length} movies for page ${page}`);
+        return { 
+          results: movies, 
+          total: apiResponse.total_results || movies.length, 
+          hasMore: page < apiResponse.total_pages 
+        };
       }
     } catch (error) {
       console.warn("[CinePlayDataManager] ❌ TMDB fetch error:", error);
-      apiFailed = true;
     }
 
-    // ⚠️ FALLBACK: Only use local data if API completely fails
-    if (apiFailed && window.moviesData && window.moviesData.length > 0) {
-      console.warn("[CinePlayDataManager] ⚠️ Using LOCAL FALLBACK data (API failed)");
+    // ✅ FALLBACK: Only use local data if API fails or returns empty
+    if (window.moviesData && window.moviesData.length > 0) {
+      console.warn("[CinePlayDataManager] ⚠️ Using LOCAL FALLBACK data");
       let localMovies = [...window.moviesData];
       if (query) localMovies = CinePlay.searchItems(localMovies, query);
       if (genre !== "All") localMovies = CinePlay.filterByGenre(localMovies, genre);
@@ -82,12 +71,8 @@ const CinePlayDataManager = {
     return { results: [], total: 0, hasMore: false };
   },
 
-  // Fetch Games Pipeline (Steam Store API -> Firestore -> Local Fallback)
-  // Fetch Games Pipeline (Steam Store API -> Firestore -> Local Fallback)
-  // Fetch Games Pipeline (Steam via Proxy -> Local Fallback)
   // Fetch Games Pipeline (Local First -> Steam via Proxy)
   async fetchGames({ query = "", genre = "All", platform = "All", sortBy = "rating-desc", page = 1, limit = 8 } = {}) {
-    // ✅ ALWAYS use local games data first (it's reliable)
     if (window.gamesData && window.gamesData.length > 0) {
       console.log("[Games] Using local game data");
       let localGames = [...window.gamesData];
@@ -106,15 +91,12 @@ const CinePlayDataManager = {
       };
     }
 
-    // If no local data, try Steam API via proxy
     try {
-      let apiGames = [];
       if (query) {
         const steamItems = await CinePlayAPIService.searchSteamViaProxy(query);
         if (steamItems && steamItems.length > 0) {
           const normGames = await Promise.all(steamItems.slice(0, limit * page).map(async (item) => {
             const appId = String(item.id);
-
             let cached = await CinePlayFirestoreService.getGame(appId);
             if (cached) return cached;
 
@@ -130,7 +112,7 @@ const CinePlayDataManager = {
             return normalized;
           }));
 
-          apiGames = normGames.filter(Boolean);
+          const apiGames = normGames.filter(Boolean);
           if (apiGames.length > 0) {
             return { results: apiGames, total: apiGames.length, hasMore: false };
           }
@@ -143,7 +125,6 @@ const CinePlayDataManager = {
     return { results: [], total: 0, hasMore: false };
   },
 
-  // Helper mapping TMDB Genre Names to IDs
   getTMDBGenreId(genreName) {
     const map = {
       "Action": 28,

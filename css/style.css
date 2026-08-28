@@ -984,7 +984,8 @@ header:not(.sticky) .nav-auth-btn {
   box-shadow: var(--card-shadow);
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: auto;  /* Changed from 100% to auto */
+  min-height: 0; /* Added */
   scroll-snap-align: start;
   flex-shrink: 0;
   width: 100%;
@@ -1005,8 +1006,10 @@ header:not(.sticky) .nav-auth-btn {
 .card-img-wrapper {
   position: relative;
   aspect-ratio: 2/3;
+  max-height: 240px; /* Added to cap the image height */
   overflow: hidden;
   background-color: var(--bg-secondary);
+  flex-shrink: 0; /* Added */
 }
 
 .card-img {
@@ -1089,6 +1092,8 @@ header:not(.sticky) .nav-auth-btn {
   display: flex;
   flex-direction: column;
   flex-grow: 1;
+  min-height: 0; /* Added */
+  overflow: visible; /* Added */
 }
 
 .card-meta {

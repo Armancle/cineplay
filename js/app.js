@@ -29,17 +29,16 @@ window._cineItemRegistry = {};
 const CinePlayAPI = {
   // Fetches movies via CinePlayDataManager (TMDB -> Firestore -> Local Fallback)
   async fetchMovies(params = {}) {
-    //rate limiting
-    await new Promise(resolve => setTimeout(resolve, 200));
-    // ✅ Use the Data Manager which handles API + fallback internally
+    // Remove the rate limiting delay - it's causing timeouts
+    // await new Promise(resolve => setTimeout(resolve, 200));
+
     if (window.CinePlayDataManager) {
       try {
         const result = await window.CinePlayDataManager.fetchMovies(params);
-        // ✅ If we got results from API, return them immediately
+        console.log("fetchMovies result:", result?.results?.length || 0, "movies");
         if (result && result.results && result.results.length > 0) {
           return result;
         }
-        // If DataManager returned empty but we have local data, fallback here
         if (window.moviesData && window.moviesData.length > 0) {
           console.warn("[CinePlayAPI] DataManager returned empty, using local fallback");
           let movies = [...window.moviesData];
@@ -56,11 +55,9 @@ const CinePlayAPI = {
         return result || { results: [], total: 0, hasMore: false };
       } catch (error) {
         console.warn("[CinePlayAPI] DataManager fetch failed:", error);
-        // Fallback to local if DataManager fails
         return this._fallbackToLocalMovies(params);
       }
     }
-    // If no DataManager, fallback to local
     return this._fallbackToLocalMovies(params);
   },
 
@@ -223,23 +220,28 @@ function getRecommendations({ contentType = "movie", mood = "Action-packed", gen
 // Renders list of movie cards into specified container
 // Renders list of movie cards into specified container
 function renderMovies(movies, containerElement, append = false) {
-  if (!containerElement) return;
-  if (movies.length === 0) {
-    if (!append) containerElement.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-secondary);">No movies found matching your criteria.</div>`;
+  if (!containerElement) {
+    console.error("renderMovies: containerElement is null");
     return;
   }
 
-  // 🔧 FIX: Generate cards HTML
+  if (!movies || movies.length === 0) {
+    if (!append) {
+      containerElement.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-secondary);">No movies found matching your criteria.</div>`;
+    }
+    return;
+  }
+
+  console.log(`✅ renderMovies: Rendering ${movies.length} movies`);
+
   const cardsHtml = movies.map(movie => createMovieCardHTML(movie)).join("");
 
   if (append) {
-    // 🔧 FIX: Only append new cards, don't duplicate existing ones
     containerElement.insertAdjacentHTML("beforeend", cardsHtml);
   } else {
     containerElement.innerHTML = cardsHtml;
   }
 
-  // 🔧 FIX: Re-bind click events for all cards in container (including existing ones)
   bindCardClickEvents(containerElement, "movie");
 }
 
@@ -261,22 +263,39 @@ function renderGames(games, containerElement, append = false) {
 
 /// Dynamic templates
 function createMovieCardHTML(movie) {
-  // Store in registry for reliable detail modal lookup
+  if (!movie || !movie.id) {
+    console.warn("createMovieCardHTML: Invalid movie object", movie);
+    return "";
+  }
+
   window._cineItemRegistry[movie.id] = movie;
 
   const isFav = isFavorite(movie.id);
-  const streamingBadges = movie.providers && movie.providers.IN && movie.providers.IN.flatrate
-    ? movie.providers.IN.flatrate.slice(0, 2).map(s => `<span class="streaming-badge">${s.name}</span>`).join("")
-    : (movie.streaming ? movie.streaming.slice(0, 2).map(s => `<span class="streaming-badge">${s}</span>`).join("") : "");
 
-  const trailerKey = movie.trailerKey || movie.trailer || "";
+  // Handle both API and local data formats
+  const posterUrl = movie.poster || movie.poster_path || 'images/posters/m1.jpg';
+  const title = movie.title || movie.name || 'Untitled';
+  const rating = movie.rating || movie.vote_average || 0;
+  const year = movie.year || (movie.release_date ? new Date(movie.release_date).getFullYear() : '—');
   const runtime = movie.runtime ? (typeof movie.runtime === 'number' ? `${movie.runtime}m` : movie.runtime) : (movie.duration || '—');
+  const genres = movie.genres || movie.genre || [];
+  const overview = movie.overview || movie.description || 'No overview available.';
+  const trailerKey = movie.trailerKey || movie.trailer || "";
+
+  let streamingBadges = "";
+  if (movie.providers && movie.providers.IN && movie.providers.IN.flatrate) {
+    streamingBadges = movie.providers.IN.flatrate.slice(0, 2).map(s => `<span class="streaming-badge">${s.name}</span>`).join("");
+  } else if (movie.streaming && Array.isArray(movie.streaming)) {
+    streamingBadges = movie.streaming.slice(0, 2).map(s => `<span class="streaming-badge">${s}</span>`).join("");
+  }
+
+  const safeTitle = title.replace(/'/g, "\\'");
 
   return `
     <article class="media-card" data-id="${movie.id}" data-type="movie">
       <div class="card-img-wrapper shimmer-wrapper">
-        <img src="${movie.poster}" alt="${movie.title}" class="card-img" loading="lazy" onerror="CinePlay.movieImgFallback(this, '${movie.title.replace(/'/g, "\\'")}')"> 
-        <div class="card-rating-badge"><i class="fa-solid fa-star"></i> ${movie.rating}</div>
+        <img src="${posterUrl}" alt="${title}" class="card-img" loading="lazy" onerror="this.src='images/posters/m1.jpg'"> 
+        <div class="card-rating-badge"><i class="fa-solid fa-star"></i> ${typeof rating === 'number' ? rating.toFixed(1) : rating}</div>
         <button class="card-favorite-btn ${isFav ? 'active' : ''}" aria-label="Favorite button" onclick="event.stopPropagation(); CinePlay.handleFavoriteAction(this, '${movie.id}', 'movie')">
           <i class="${isFav ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
         </button>
@@ -284,17 +303,17 @@ function createMovieCardHTML(movie) {
       </div>
       <div class="card-content">
         <div class="card-meta">
-          <span>${movie.year}</span>
+          <span>${year}</span>
           <span>${runtime}</span>
         </div>
-        <h3 class="card-title">${movie.title}</h3>
+        <h3 class="card-title">${title}</h3>
         <div class="card-genres">
-          ${(movie.genres || movie.genre || ["Action"]).slice(0, 3).map(g => `<span class="card-genre-tag">${g}</span>`).join("")}
+          ${genres.slice(0, 3).map(g => `<span class="card-genre-tag">${g}</span>`).join("")}
         </div>
-        <p class="card-desc">${movie.overview || movie.description || 'No overview available.'}</p>
+        <p class="card-desc">${overview}</p>
         <div style="display: flex; gap: 8px; margin-top: 10px;">
           <button class="card-btn" style="flex: 1;">Details</button>
-          ${trailerKey ? `<button class="card-btn btn-outline" style="padding: 0 12px; border-radius: 8px;" title="Watch Trailer" onclick="event.stopPropagation(); CinePlay.openTrailerModal('${trailerKey}', '${movie.title.replace(/'/g, "\\'")}')"><i class="fa-solid fa-play"></i></button>` : ''}
+          ${trailerKey ? `<button class="card-btn btn-outline" style="padding: 0 12px; border-radius: 8px;" title="Watch Trailer" onclick="event.stopPropagation(); CinePlay.openTrailerModal('${trailerKey}', '${safeTitle}')"><i class="fa-solid fa-play"></i></button>` : ''}
         </div>
         ${streamingBadges ? `<div class="streaming-list">${streamingBadges}</div>` : ''}
       </div>
@@ -503,42 +522,199 @@ function openDetailsModal(item, type) {
   const modalBody = document.querySelector('.modal-body');
   if (modalBody) modalBody.scrollTop = 0;
 
-  // ... (rest of the existing code to render the modal)
+  const posterContainer = document.getElementById("modal-poster-container");
+  const titleText = document.getElementById("modal-title-text");
+  const badgesContainer = document.getElementById("modal-badges-container");
+  const descText = document.getElementById("modal-desc-text");
+  const infoDetails = document.getElementById("modal-info-details");
+  const actionsContainer = document.getElementById("modal-actions-container");
 
-  // ✅ If it's a movie and has tmdbId, try to fetch providers
+  // Poster
+  posterContainer.innerHTML = "";
+  const img = document.createElement("img");
+  img.src = item.poster || item.cover || "images/posters/m1.jpg";
+  img.alt = item.title;
+  img.onerror = () => {
+    posterContainer.innerHTML = `
+      <div class="fallback-poster" style="height: 100%;">
+        <i class="fa-solid ${type === 'movie' ? 'fa-film' : 'fa-gamepad'}"></i>
+        <div class="fallback-title">${item.title}</div>
+      </div>
+    `;
+  };
+  posterContainer.appendChild(img);
+
+  titleText.textContent = item.title;
+
+  const runtimeDisplay = item.runtime
+    ? (typeof item.runtime === 'number' ? `${item.runtime}m` : item.runtime)
+    : (item.duration || '—');
+
+  badgesContainer.innerHTML = `
+    <div class="modal-badge rating"><i class="fa-solid fa-star"></i> ${item.rating || item.tmdbRating || '—'}</div>
+    <div class="modal-badge">${item.year || '—'}</div>
+    ${type === "movie" ? `<div class="modal-badge"><i class="fa-regular fa-clock"></i> ${runtimeDisplay}</div>` : ""}
+    <div class="modal-badge" style="text-transform: uppercase; background: rgba(229, 9, 20, 0.2); color: #fff;">${type}</div>
+  `;
+
+  descText.textContent = item.description || item.overview || 'No description available.';
+
+  const genres = item.genres || item.genre || [];
+  const platforms = item.platform || item.platforms || [];
+  let metaHtml = `
+    <li><strong>Genres:</strong> ${genres.length ? genres.join(", ") : '—'}</li>
+    <li><strong>Mood Vibe:</strong> ${item.mood ? item.mood.join(" • ") : "N/A"}</li>
+  `;
+
+  if (type === "movie") {
+    const directorStr = Array.isArray(item.directors)
+      ? item.directors.join(", ")
+      : (item.director || null);
+    if (directorStr) {
+      metaHtml += `<li><strong>Director:</strong> <a href="movies.html?director=${encodeURIComponent(directorStr)}" style="color: var(--accent-red); text-decoration: underline;">${directorStr}</a></li>`;
+    }
+    const castStr = Array.isArray(item.cast) ? item.cast.join(", ") : item.cast;
+    if (castStr) metaHtml += `<li id="modal-cast-row"><strong>Cast:</strong> ${castStr}</li>`;
+    else metaHtml += `<li id="modal-cast-row"><strong>Cast:</strong> <span class="modal-loading-text"><i class="fa-solid fa-spinner fa-spin" style="font-size:11px;"></i> Loading…</span></li>`;
+
+    if (item.language) metaHtml += `<li><strong>Language:</strong> ${item.language}</li>`;
+    if (item.country) metaHtml += `<li><strong>Country:</strong> ${item.country}</li>`;
+    if (item.voteCount) metaHtml += `<li><strong>Votes:</strong> ${Number(item.voteCount).toLocaleString()}</li>`;
+
+    metaHtml += `
+      <div class="provider-section" id="modal-providers-section">
+        <div class="provider-header">
+          <span class="provider-title"><i class="fa-solid fa-tv" style="color: var(--accent-red); margin-right: 6px;"></i> Where to Watch</span>
+          <span style="font-size: 11px; color: var(--text-muted);">Region: <strong>🌐 India</strong></span>
+        </div>
+        <div class="provider-grid" id="modal-provider-grid">
+          ${_buildProviderGrid(item)}
+        </div>
+        <p style="font-size: 11px; color: var(--text-muted); margin-top: 8px;">Availability may vary by region.</p>
+      </div>
+    `;
+
+  } else if (type === "game") {
+    if (platforms.length) metaHtml += `<li><strong>Platforms:</strong> ${platforms.join(", ")}</li>`;
+    const dev = Array.isArray(item.developers) ? item.developers.join(", ") : item.developer;
+    const pub = Array.isArray(item.publishers) ? item.publishers.join(", ") : item.publisher;
+    if (dev) metaHtml += `<li><strong>Developer:</strong> ${dev}</li>`;
+    if (pub) metaHtml += `<li><strong>Publisher:</strong> ${pub}</li>`;
+    if (item.price) metaHtml += `<li><strong>Price:</strong> <span style="color: #4ade80; font-weight: 700;">${item.price}</span></li>`;
+    if (item.tags && item.tags.length) metaHtml += `<li><strong>Tags:</strong> ${item.tags.slice(0, 6).join(" • ")}</li>`;
+    if (item.sysReq) {
+      const sysMin = typeof item.sysReq === 'string' ? item.sysReq : (item.sysReq.minimum || '');
+      const sysRec = typeof item.sysReq === 'string' ? '' : (item.sysReq.recommended || '');
+      metaHtml += `
+        <li style="margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 8px;">
+          <strong>System Requirements:</strong>
+          <div style="font-size: 11px; color: var(--text-muted); margin-top: 6px; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 6px;">
+            <div><strong>Min:</strong> ${sysMin}</div>
+            ${sysRec ? `<div style="margin-top: 4px;"><strong>Rec:</strong> ${sysRec}</div>` : ''}
+          </div>
+        </li>
+      `;
+    }
+  }
+
+  infoDetails.innerHTML = metaHtml;
+
+  const trailerKey = item.trailerKey || item.trailer || "";
+  const isFav = isFavorite(item.id);
+  actionsContainer.innerHTML = `
+    ${trailerKey ? `
+      <button class="btn btn-primary" id="modal-play-btn">
+        <i class="fa-solid fa-play"></i> Watch Trailer
+      </button>
+    ` : ''}
+    <button class="btn btn-outline" id="modal-fav-btn">
+      <i class="${isFav ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
+      ${isFav ? 'Favorited' : 'Add to Watchlist'}
+    </button>
+    <button class="btn btn-outline" id="modal-dislike-btn" title="Show fewer recommendations like this">
+      <i class="fa-solid fa-thumbs-down"></i> Not for me
+    </button>
+  `;
+
+  const playBtn = document.getElementById("modal-play-btn");
+  if (playBtn && trailerKey) {
+    playBtn.addEventListener("click", () => openTrailerModal(trailerKey, item.title));
+  }
+
+  const favBtn = document.getElementById("modal-fav-btn");
+  if (favBtn) {
+    favBtn.addEventListener("click", () => {
+      const isNowFav = toggleFavorite(item.id, type);
+      favBtn.innerHTML = isNowFav
+        ? '<i class="fa-solid fa-heart"></i> Favorited'
+        : '<i class="fa-regular fa-heart"></i> Add to Watchlist';
+    });
+  }
+
+  const dislikeBtn = document.getElementById("modal-dislike-btn");
+  if (dislikeBtn) {
+    dislikeBtn.addEventListener("click", () => { markAsDisliked(item.id, item.title); closeModal(); });
+  }
+
+  globalModal.classList.add("active");
+  document.body.style.overflow = "hidden";
+
   if (type === "movie" && item.tmdbId && window.CinePlayAPIService) {
-    // Fetch providers in background
-    CinePlayAPIService.getTMDBWatchProviders(item.tmdbId).then(providersData => {
-      if (providersData && providersData.results) {
-        // Store providers in the item
-        item.providers = providersData.results;
+    _enrichModalWithTMDB(item);
+  }
+}
+
+async function _enrichModalWithTMDB(item) {
+  try {
+    const tmdbId = item.tmdbId;
+    const [credits, videos, providers] = await Promise.all([
+      CinePlayAPIService.getTMDBMovieCredits(tmdbId),
+      CinePlayAPIService.getTMDBMovieVideos(tmdbId),
+      CinePlayAPIService.getTMDBWatchProviders(tmdbId)
+    ]);
+
+    const castRow = document.getElementById("modal-cast-row");
+    if (castRow && credits && credits.cast && credits.cast.length) {
+      const castNames = credits.cast.slice(0, 6).map(c => c.name).join(", ");
+      castRow.innerHTML = `<strong>Cast:</strong> ${castNames}`;
+    }
+
+    if (videos && videos.results && videos.results.length) {
+      const trailer = videos.results.find(v => v.site === "YouTube" && v.type === "Trailer")
+        || videos.results.find(v => v.site === "YouTube" && v.type === "Teaser");
+      if (trailer && trailer.key) {
+        item.trailerKey = trailer.key;
+        item.trailer = trailer.key;
         window._cineItemRegistry[item.id] = item;
-
-        // Update the provider grid
-        const providerGrid = document.getElementById("modal-provider-grid");
-        if (providerGrid) {
-          const config = window.CINEPLAY_CONFIG ? window.CINEPLAY_CONFIG.TMDB : { IMAGE_BASE: "https://image.tmdb.org/t/p", DEFAULT_REGION: "IN" };
-          const regionData = providersData.results[config.DEFAULT_REGION] || providersData.results["US"] || {};
-          const allP = [
-            ...(regionData.flatrate || []).map(p => ({ ...p, type: "STREAM" })),
-            ...(regionData.rent || []).map(p => ({ ...p, type: "RENT" })),
-            ...(regionData.buy || []).map(p => ({ ...p, type: "BUY" }))
-          ];
-
-          if (allP.length > 0) {
-            providerGrid.innerHTML = allP.slice(0, 6).map(p => `
-              <div class="provider-card" title="${p.provider_name} (${p.type})">
-                ${p.logo_path ? `<img src="${config.IMAGE_BASE}/w92${p.logo_path}" alt="${p.provider_name}" class="provider-logo" onerror="this.style.display='none'">` : `<i class="fa-solid fa-tv" style="color:var(--accent-red);"></i>`}
-                <span class="provider-name">${p.provider_name}</span>
-                <span class="provider-type-badge ${p.type.toLowerCase()}">${p.type}</span>
-              </div>
-            `).join("");
-          }
+        const playBtn = document.getElementById("modal-play-btn");
+        if (playBtn) {
+          playBtn.style.display = "inline-flex";
+          playBtn.onclick = () => openTrailerModal(trailer.key, item.title);
         }
       }
-    }).catch(err => {
-      console.warn("Failed to fetch providers:", err);
-    });
+    }
+
+    const providerGrid = document.getElementById("modal-provider-grid");
+    if (providerGrid && providers && providers.results) {
+      const config = window.CINEPLAY_CONFIG ? window.CINEPLAY_CONFIG.TMDB : { IMAGE_BASE: "https://image.tmdb.org/t/p", DEFAULT_REGION: "IN" };
+      const regionData = providers.results[config.DEFAULT_REGION] || providers.results["US"] || {};
+      const allP = [
+        ...(regionData.flatrate || []).map(p => ({ ...p, type: "STREAM" })),
+        ...(regionData.rent || []).map(p => ({ ...p, type: "RENT" })),
+        ...(regionData.buy || []).map(p => ({ ...p, type: "BUY" }))
+      ];
+      if (allP.length > 0) {
+        providerGrid.innerHTML = allP.slice(0, 6).map(p => `
+          <div class="provider-card" title="${p.provider_name} (${p.type})">
+            ${p.logo_path ? `<img src="${config.IMAGE_BASE}/w92${p.logo_path}" alt="${p.provider_name}" class="provider-logo" onerror="this.style.display='none'">` : `<i class="fa-solid fa-tv" style="color:var(--accent-red);"></i>`}
+            <span class="provider-name">${p.provider_name}</span>
+            <span class="provider-type-badge ${p.type.toLowerCase()}">${p.type}</span>
+          </div>
+        `).join("");
+      }
+    }
+  } catch (e) {
+    console.warn("[CinePlay] TMDB enrichment failed:", e);
   }
 }
 

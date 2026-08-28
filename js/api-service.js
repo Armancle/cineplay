@@ -57,13 +57,17 @@ const CinePlayAPIService = {
   },
 
   // Discover TMDB Movies by Filters
+  // Discover TMDB Movies by Filters
   async discoverTMDBMovies(filters = {}) {
     const params = { page: filters.page || 1 };
-    if (filters.genreId) params.with_genres = filters.genreId;
+    if (filters.with_genres) params.with_genres = filters.with_genres;
     if (filters.year) params.primary_release_year = filters.year;
-    if (filters.minRating) params["vote_average.gte"] = filters.minRating;
+    if (filters["vote_average.gte"]) params["vote_average.gte"] = filters["vote_average.gte"];
+    if (filters["vote_count.gte"]) params["vote_count.gte"] = filters["vote_count.gte"];
 
-    if (filters.sortBy === "popularity-desc" || !filters.sortBy) {
+    if (filters.sort_by) {
+      params.sort_by = filters.sort_by;
+    } else if (filters.sortBy === "popularity-desc" || !filters.sortBy) {
       params.sort_by = "popularity.desc";
     } else if (filters.sortBy === "rating-desc") {
       params.sort_by = "vote_average.desc";
@@ -233,9 +237,7 @@ const CinePlayAPIService = {
 
     const config = window.CINEPLAY_CONFIG ? window.CINEPLAY_CONFIG.TMDB : { IMAGE_BASE: "https://image.tmdb.org/t/p", POSTER_SIZE: "w500", BACKDROP_SIZE: "w1280", PROFILE_SIZE: "h630", DEFAULT_REGION: "IN" };
     const tmdbId = String(tmdbData.id);
-    const imdbId = tmdbData.imdb_id || (imdbData ? imdbData.id : `tt${tmdbId}`);
 
-    // Extract Poster & Backdrop URLs
     const poster = tmdbData.poster_path
       ? `${config.IMAGE_BASE}/${config.POSTER_SIZE}${tmdbData.poster_path}`
       : "images/posters/m1.jpg";
@@ -244,26 +246,12 @@ const CinePlayAPIService = {
       ? `${config.IMAGE_BASE}/${config.BACKDROP_SIZE}${tmdbData.backdrop_path}`
       : poster;
 
-    // Extract Trailer Video Key (YouTube) — only valid YouTube Trailer or Teaser
+    // Get trailer key
     let trailerKey = null;
     if (videosData?.results?.length) {
-      const trailer =
-        videosData.results.find(
-          v => v.site === "YouTube" && v.type === "Trailer"
-        ) ||
-        videosData.results.find(
-          v => v.site === "YouTube" && v.type === "Teaser"
-        );
-
-      if (trailer?.key) {
-        trailerKey = trailer.key;
-      }
-    }
-
-    // Extract Keywords
-    let keywords = [];
-    if (keywordsData && keywordsData.keywords) {
-      keywords = keywordsData.keywords.map(k => k.name);
+      const trailer = videosData.results.find(v => v.site === "YouTube" && v.type === "Trailer") ||
+        videosData.results.find(v => v.site === "YouTube" && v.type === "Teaser");
+      if (trailer?.key) trailerKey = trailer.key;
     }
 
     const genreIdNameMap = {
@@ -280,16 +268,11 @@ const CinePlayAPIService = {
     }
     if (genres.length === 0) genres = ["Action", "Drama"];
 
-    // Extract Release Year & Runtime
     const releaseDate = tmdbData.release_date || "2024-01-01";
     const year = parseInt(releaseDate.split("-")[0]) || 2024;
     const runtime = tmdbData.runtime ? `${tmdbData.runtime}m` : "120m";
-
-    // Extract Ratings
     const tmdbRating = parseFloat((tmdbData.vote_average || 8.0).toFixed(1));
-    const imdbRating = imdbData ? parseFloat(imdbData.rating) : tmdbRating;
 
-    // Cast & Directors
     let cast = ["Lead Actor"];
     let directors = ["Director"];
 
@@ -303,13 +286,10 @@ const CinePlayAPIService = {
       }
     }
 
-    // Watch Providers by region (from TMDB only, no fake fallbacks)
     let providers = {};
-
     if (providersData && providersData.results) {
       const region = config.DEFAULT_REGION || "IN";
       const regionData = providersData.results[region] || providersData.results["US"];
-
       if (regionData) {
         providers[region] = {
           flatrate: (regionData.flatrate || []).map(p => ({
@@ -334,29 +314,24 @@ const CinePlayAPIService = {
     return {
       id: `tmdb_${tmdbId}`,
       tmdbId: tmdbId,
-      imdbId: imdbId,
-      imdbUrl: `https://www.imdb.com/title/${imdbId}/`,
       type: "movie",
       title: tmdbData.title || tmdbData.original_title || "Untitled Movie",
       overview: tmdbData.overview || "No overview available.",
       description: tmdbData.overview || "No description available.",
       poster: poster,
       backdrop: backdrop,
-      releaseDate: releaseDate,
       year: year,
-      duration: runtime,
       runtime: runtime,
-      genre: genres.length > 0 ? genres : ["Action", "Sci-Fi"],
+      duration: runtime,
+      genre: genres,
       genres: genres,
-      keywords: keywords,
       cast: cast,
       directors: directors,
       rating: tmdbRating,
       tmdbRating: tmdbRating,
-      imdbRating: imdbRating,
       voteCount: tmdbData.vote_count || 1000,
-      trailerUrl: trailerKey ? `https://www.youtube.com/embed/${trailerKey}?autoplay=1&enablejsapi=1` : null,
       trailerKey: trailerKey,
+      trailer: trailerKey,
       language: (tmdbData.original_language || "en").toUpperCase(),
       country: tmdbData.production_countries && tmdbData.production_countries.length > 0 ? tmdbData.production_countries[0].name : "USA",
       providers: providers,
