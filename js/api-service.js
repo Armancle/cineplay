@@ -1,26 +1,30 @@
 /* CinePlay - Central External API Service & Data Normalizer */
 
 const CinePlayAPIService = {
-  // Helper for TMDB Requests
+  // Helper for TMDB Requests (routed through secure serverless/proxy endpoint)
   async fetchTMDB(endpoint, params = {}) {
-    const config = window.CINEPLAY_CONFIG.TMDB;
-    const url = new URL(`${config.BASE_URL}${endpoint}`);
-    
-    // Add params
-    Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+    const config = window.CINEPLAY_CONFIG ? window.CINEPLAY_CONFIG.TMDB : { PROXY_ENDPOINT: "/api/tmdb" };
+    const proxyBase = config.PROXY_ENDPOINT || "/api/tmdb";
+
+    // Construct URL to backend proxy
+    const url = new URL(proxyBase, window.location.origin);
+    url.searchParams.append("endpoint", endpoint);
+
+    // Add remaining query params
+    Object.keys(params).forEach(key => {
+      if (params[key] !== undefined && params[key] !== null) {
+        url.searchParams.append(key, params[key]);
+      }
+    });
     if (!url.searchParams.has("language")) url.searchParams.append("language", "en-US");
 
-    const headers = {
-      "Accept": "application/json"
-    };
-
-    if (config.BEARER_TOKEN) {
-      headers["Authorization"] = `Bearer ${config.BEARER_TOKEN}`;
-    }
-
     try {
-      const response = await fetch(url.toString(), { headers });
-      if (!response.ok) throw new Error(`TMDB API Error: ${response.status} ${response.statusText}`);
+      const response = await fetch(url.toString(), {
+        headers: { "Accept": "application/json" }
+      });
+      if (!response.ok) {
+        throw new Error(`TMDB Proxy Error: ${response.status} ${response.statusText}`);
+      }
       return await response.json();
     } catch (error) {
       console.warn(`[CinePlayAPIService] TMDB request failed for ${endpoint}:`, error);
@@ -114,6 +118,72 @@ const CinePlayAPIService = {
       return [];
     }
   },
+  // ========== STEAM API PROXY METHODS ==========
+
+  // Search Steam Store via Proxy
+  async searchSteamViaProxy(query) {
+    if (!query) return [];
+    try {
+      const url = new URL("/api/steam", window.location.origin);
+      url.searchParams.append("action", "search");
+      url.searchParams.append("query", query);
+
+      const response = await fetch(url.toString());
+      if (!response.ok) throw new Error(`Steam Proxy Error: ${response.status}`);
+      const data = await response.json();
+      return data && data.items ? data.items : [];
+    } catch (error) {
+      console.warn(`[Steam Proxy] Search failed for ${query}:`, error);
+      return [];
+    }
+  },
+
+  // Get Steam Game Details via Proxy
+  async getSteamDetailsViaProxy(appId) {
+    if (!appId) return null;
+    try {
+      const url = new URL("/api/steam", window.location.origin);
+      url.searchParams.append("action", "details");
+      url.searchParams.append("appid", appId);
+
+      const response = await fetch(url.toString());
+      if (!response.ok) throw new Error(`Steam Proxy Error: ${response.status}`);
+      const data = await response.json();
+      if (data && data[appId] && data[appId].success) {
+        return data[appId].data;
+      }
+      return null;
+    } catch (error) {
+      console.warn(`[Steam Proxy] Details failed for ${appId}:`, error);
+      return null;
+    }
+  },
+
+  // Get Steam Reviews via Proxy
+  async getSteamReviewsViaProxy(appId) {
+    if (!appId) return null;
+    try {
+      const url = new URL("/api/steam", window.location.origin);
+      url.searchParams.append("action", "reviews");
+      url.searchParams.append("appid", appId);
+
+      const response = await fetch(url.toString());
+      if (!response.ok) throw new Error(`Steam Proxy Error: ${response.status}`);
+      const data = await response.json();
+      if (data && data.query_summary) {
+        return {
+          reviewScoreDesc: data.query_summary.review_score_desc || "Very Positive",
+          totalPositive: data.query_summary.total_positive || 0,
+          totalReviews: data.query_summary.total_reviews || 0,
+          percentPositive: data.query_summary.total_reviews > 0 ? Math.round((data.query_summary.total_positive / data.query_summary.total_reviews) * 100) : 90
+        };
+      }
+      return null;
+    } catch (error) {
+      console.warn(`[Steam Proxy] Reviews failed for ${appId}:`, error);
+      return null;
+    }
+  },
 
   // Get Steam Game Reviews / Community Ratings
   async getSteamReviews(appId) {
@@ -161,12 +231,12 @@ const CinePlayAPIService = {
   normalizeMovie(tmdbData, creditsData = null, providersData = null, videosData = null, keywordsData = null, imdbData = null) {
     if (!tmdbData) return null;
 
-    const config = window.CINEPLAY_CONFIG.TMDB;
+    const config = window.CINEPLAY_CONFIG ? window.CINEPLAY_CONFIG.TMDB : { IMAGE_BASE: "https://image.tmdb.org/t/p", POSTER_SIZE: "w500", BACKDROP_SIZE: "w1280", PROFILE_SIZE: "h630", DEFAULT_REGION: "IN" };
     const tmdbId = String(tmdbData.id);
     const imdbId = tmdbData.imdb_id || (imdbData ? imdbData.id : `tt${tmdbId}`);
 
     // Extract Poster & Backdrop URLs
-    const poster = tmdbData.poster_path 
+    const poster = tmdbData.poster_path
       ? `${config.IMAGE_BASE}/${config.POSTER_SIZE}${tmdbData.poster_path}`
       : "images/posters/m1.jpg";
 
@@ -174,11 +244,20 @@ const CinePlayAPIService = {
       ? `${config.IMAGE_BASE}/${config.BACKDROP_SIZE}${tmdbData.backdrop_path}`
       : poster;
 
-    // Extract Trailer Video Key (YouTube)
-    let trailerKey = "dQw4w9WgXcQ";
-    if (videosData && videosData.results && videosData.results.length > 0) {
-      const trailer = videosData.results.find(v => v.site === "YouTube" && (v.type === "Trailer" || v.type === "Teaser")) || videosData.results[0];
-      if (trailer && trailer.key) trailerKey = trailer.key;
+    // Extract Trailer Video Key (YouTube) — only valid YouTube Trailer or Teaser
+    let trailerKey = null;
+    if (videosData?.results?.length) {
+      const trailer =
+        videosData.results.find(
+          v => v.site === "YouTube" && v.type === "Trailer"
+        ) ||
+        videosData.results.find(
+          v => v.site === "YouTube" && v.type === "Teaser"
+        );
+
+      if (trailer?.key) {
+        trailerKey = trailer.key;
+      }
     }
 
     // Extract Keywords
@@ -224,22 +303,30 @@ const CinePlayAPIService = {
       }
     }
 
-    // Watch Providers by region
-    let providers = {
-      IN: {
-        flatrate: [{ name: "Netflix", logo: "images/posters/m1.jpg", type: "STREAM" }],
-        rent: [{ name: "Amazon Prime Video", logo: "images/posters/m2.jpg", type: "RENT" }]
-      }
-    };
+    // Watch Providers by region (from TMDB only, no fake fallbacks)
+    let providers = {};
 
     if (providersData && providersData.results) {
-      const region = config.DEFAULT_REGION;
+      const region = config.DEFAULT_REGION || "IN";
       const regionData = providersData.results[region] || providersData.results["US"];
+
       if (regionData) {
         providers[region] = {
-          flatrate: (regionData.flatrate || []).map(p => ({ name: p.provider_name, logo: `${config.IMAGE_BASE}/w92${p.logo_path}`, type: "STREAM" })),
-          rent: (regionData.rent || []).map(p => ({ name: p.provider_name, logo: `${config.IMAGE_BASE}/w92${p.logo_path}`, type: "RENT" })),
-          buy: (regionData.buy || []).map(p => ({ name: p.provider_name, logo: `${config.IMAGE_BASE}/w92${p.logo_path}`, type: "BUY" }))
+          flatrate: (regionData.flatrate || []).map(p => ({
+            name: p.provider_name,
+            logo: p.logo_path ? `${config.IMAGE_BASE}/w92${p.logo_path}` : null,
+            type: "STREAM"
+          })),
+          rent: (regionData.rent || []).map(p => ({
+            name: p.provider_name,
+            logo: p.logo_path ? `${config.IMAGE_BASE}/w92${p.logo_path}` : null,
+            type: "RENT"
+          })),
+          buy: (regionData.buy || []).map(p => ({
+            name: p.provider_name,
+            logo: p.logo_path ? `${config.IMAGE_BASE}/w92${p.logo_path}` : null,
+            type: "BUY"
+          }))
         };
       }
     }
@@ -268,7 +355,7 @@ const CinePlayAPIService = {
       tmdbRating: tmdbRating,
       imdbRating: imdbRating,
       voteCount: tmdbData.vote_count || 1000,
-      trailerUrl: `https://www.youtube.com/embed/${trailerKey}?autoplay=1&enablejsapi=1`,
+      trailerUrl: trailerKey ? `https://www.youtube.com/embed/${trailerKey}?autoplay=1&enablejsapi=1` : null,
       trailerKey: trailerKey,
       language: (tmdbData.original_language || "en").toUpperCase(),
       country: tmdbData.production_countries && tmdbData.production_countries.length > 0 ? tmdbData.production_countries[0].name : "USA",
@@ -300,8 +387,8 @@ const CinePlayAPIService = {
     }
     if (platforms.length === 0) platforms.push("PC", "PlayStation", "Xbox");
 
-    const sysReq = steamAppDetails.pc_requirements && steamAppDetails.pc_requirements.minimum 
-      ? steamAppDetails.pc_requirements.minimum.replace(/<[^>]*>?/gm, '') 
+    const sysReq = steamAppDetails.pc_requirements && steamAppDetails.pc_requirements.minimum
+      ? steamAppDetails.pc_requirements.minimum.replace(/<[^>]*>?/gm, '')
       : "Windows 10 64-bit, GTX 1060 / RX 580, 16 GB RAM.";
 
     const reviewScoreDesc = reviewsData ? reviewsData.reviewScoreDesc : "Very Positive";
@@ -348,8 +435,8 @@ const CinePlayAPIService = {
       ? `${config.IMAGE_BASE}/${config.PROFILE_SIZE}${tmdbPerson.profile_path}`
       : "images/posters/m1.jpg";
 
-    const filmography = creditsData && creditsData.cast 
-      ? creditsData.cast.slice(0, 10).map(m => m.title || m.original_title) 
+    const filmography = creditsData && creditsData.cast
+      ? creditsData.cast.slice(0, 10).map(m => m.title || m.original_title)
       : (tmdbPerson.known_for ? tmdbPerson.known_for.map(k => k.title || k.name).filter(Boolean) : ["Featured Title"]);
 
     return {

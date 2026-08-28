@@ -2,76 +2,125 @@
 
 const CinePlayDataManager = {
   // Fetch Movies Pipeline (TMDB -> Firestore -> Local Fallback)
+  // Fetch Movies Pipeline (TMDB -> Firestore -> Local Fallback)
   async fetchMovies({ query = "", genre = "All", sortBy = "popularity-desc", page = 1, limit = 20 } = {}) {
     let movies = [];
     let hasMoreResults = false;
+    let totalCount = 0;
+    let apiFailed = false;
 
     try {
-      if (query) {
-        // 1. Search TMDB
-        const searchRes = await CinePlayAPIService.searchTMDBMovies(query, page);
-        if (searchRes && searchRes.results && searchRes.results.length > 0) {
-          hasMoreResults = page < searchRes.total_pages;
-          movies = searchRes.results.slice(0, limit).map(m => CinePlayAPIService.normalizeMovie(m)).filter(Boolean);
-          movies.forEach(m => CinePlayFirestoreService.saveMovie(m));
-        }
-      } else {
-        // 2. Discover Movies via TMDB
-        const genreId = this.getTMDBGenreId(genre);
-        const discoverRes = await CinePlayAPIService.discoverTMDBMovies({ genreId, page, sortBy });
+      // Build TMDB discover parameters
+      const params = { page: page };
 
-        if (discoverRes && discoverRes.results && discoverRes.results.length > 0) {
-          hasMoreResults = page < discoverRes.total_pages;
-          movies = discoverRes.results.slice(0, limit).map(m => CinePlayAPIService.normalizeMovie(m)).filter(Boolean);
-          movies.forEach(m => CinePlayFirestoreService.saveMovie(m));
-        }
+      if (genre !== "All") {
+        const genreId = this.getTMDBGenreId(genre);
+        if (genreId) params.with_genres = genreId;
+      }
+
+      if (sortBy === "popularity-desc" || !sortBy) {
+        params.sort_by = "popularity.desc";
+      } else if (sortBy === "rating-desc") {
+        params.sort_by = "vote_average.desc";
+        params["vote_count.gte"] = 300;
+      } else if (sortBy === "year-desc") {
+        params.sort_by = "primary_release_date.desc";
+        params["vote_count.gte"] = 20;
+      } else if (sortBy === "year-asc") {
+        params.sort_by = "primary_release_date.asc";
+        params["vote_count.gte"] = 100;
+      } else {
+        params.sort_by = "popularity.desc";
+      }
+
+      let apiResponse = null;
+
+      if (query) {
+        apiResponse = await CinePlayAPIService.searchTMDBMovies(query, page);
+      } else {
+        apiResponse = await CinePlayAPIService.discoverTMDBMovies(params);
+      }
+
+      // Check if we got a valid response
+      if (apiResponse && apiResponse.results && apiResponse.results.length > 0) {
+        hasMoreResults = page < apiResponse.total_pages;
+        totalCount = apiResponse.total_results || apiResponse.results.length;
+        movies = apiResponse.results.slice(0, limit).map(m => CinePlayAPIService.normalizeMovie(m)).filter(Boolean);
+
+        // Cache in Firestore
+        movies.forEach(m => CinePlayFirestoreService.saveMovie(m));
+
+        console.log(`[CinePlayDataManager] ✅ API returned ${movies.length} movies`);
+        return { results: movies, total: totalCount, hasMore: hasMoreResults };
+      } else {
+        console.warn("[CinePlayDataManager] ⚠️ API returned empty or no results");
+        apiFailed = true;
       }
     } catch (error) {
-      console.warn("[CinePlayDataManager] TMDB fetch error:", error);
+      console.warn("[CinePlayDataManager] ❌ TMDB fetch error:", error);
+      apiFailed = true;
     }
 
-    // 3. Offline / Fallback Pipeline if API returns empty
-    if (movies.length === 0 && window.moviesData) {
+    // ⚠️ FALLBACK: Only use local data if API completely fails
+    if (apiFailed && window.moviesData && window.moviesData.length > 0) {
+      console.warn("[CinePlayDataManager] ⚠️ Using LOCAL FALLBACK data (API failed)");
       let localMovies = [...window.moviesData];
       if (query) localMovies = CinePlay.searchItems(localMovies, query);
       if (genre !== "All") localMovies = CinePlay.filterByGenre(localMovies, genre);
       CinePlay.sortItems(localMovies, sortBy);
 
-      const start = 0;
-      const end = page * limit;
+      const total = localMovies.length;
+      const start = (page - 1) * limit;
+      const end = start + limit;
       return {
         results: localMovies.slice(start, end),
-        total: localMovies.length,
-        hasMore: end < localMovies.length
+        total: total,
+        hasMore: end < total
       };
     }
 
-    return {
-      results: movies,
-      total: movies.length,
-      hasMore: movies.length >= limit
-    };
+    return { results: [], total: 0, hasMore: false };
   },
 
   // Fetch Games Pipeline (Steam Store API -> Firestore -> Local Fallback)
+  // Fetch Games Pipeline (Steam Store API -> Firestore -> Local Fallback)
+  // Fetch Games Pipeline (Steam via Proxy -> Local Fallback)
+  // Fetch Games Pipeline (Local First -> Steam via Proxy)
   async fetchGames({ query = "", genre = "All", platform = "All", sortBy = "rating-desc", page = 1, limit = 8 } = {}) {
-    let apiGames = [];
+    // ✅ ALWAYS use local games data first (it's reliable)
+    if (window.gamesData && window.gamesData.length > 0) {
+      console.log("[Games] Using local game data");
+      let localGames = [...window.gamesData];
+      if (query) localGames = CinePlay.searchItems(localGames, query);
+      if (genre !== "All") localGames = CinePlay.filterByGenre(localGames, genre);
+      if (platform !== "All") localGames = localGames.filter(g => g.platform && g.platform.includes(platform));
+      CinePlay.sortItems(localGames, sortBy);
 
+      const total = localGames.length;
+      const start = (page - 1) * limit;
+      const end = start + limit;
+      return {
+        results: localGames.slice(start, end),
+        total: total,
+        hasMore: end < total
+      };
+    }
+
+    // If no local data, try Steam API via proxy
     try {
+      let apiGames = [];
       if (query) {
-        // 1. Search Steam Store API
-        const steamItems = await CinePlayAPIService.searchSteamStore(query);
+        const steamItems = await CinePlayAPIService.searchSteamViaProxy(query);
         if (steamItems && steamItems.length > 0) {
-          const normGames = await Promise.all(steamItems.slice(0, limit).map(async (item) => {
+          const normGames = await Promise.all(steamItems.slice(0, limit * page).map(async (item) => {
             const appId = String(item.id);
-            // Check Firestore Cache
+
             let cached = await CinePlayFirestoreService.getGame(appId);
             if (cached) return cached;
 
-            // Fetch App Details & Reviews from Steam Store API
             const [details, reviews] = await Promise.all([
-              CinePlayAPIService.getSteamGameDetails(appId),
-              CinePlayAPIService.getSteamReviews(appId)
+              CinePlayAPIService.getSteamDetailsViaProxy(appId),
+              CinePlayAPIService.getSteamReviewsViaProxy(appId)
             ]);
 
             const normalized = CinePlayAPIService.normalizeGame(details, reviews);
@@ -82,31 +131,16 @@ const CinePlayDataManager = {
           }));
 
           apiGames = normGames.filter(Boolean);
+          if (apiGames.length > 0) {
+            return { results: apiGames, total: apiGames.length, hasMore: false };
+          }
         }
       }
     } catch (error) {
-      console.warn("[CinePlayDataManager] Steam API fetch failed, using local fallback:", error);
+      console.warn("[Games] Steam API failed:", error);
     }
 
-    // Combine / Fallback with Local Games Dataset
-    let games = apiGames;
-    if (games.length === 0 && window.gamesData) {
-      let localGames = [...window.gamesData];
-      if (query) localGames = CinePlay.searchItems(localGames, query);
-      if (genre !== "All") localGames = CinePlay.filterByGenre(localGames, genre);
-      if (platform !== "All") localGames = localGames.filter(g => g.platform && g.platform.includes(platform));
-      CinePlay.sortItems(localGames, sortBy);
-
-      const start = 0;
-      const end = page * limit;
-      games = localGames.slice(start, end);
-    }
-
-    return {
-      results: games,
-      total: games.length,
-      hasMore: (page * limit) < games.length
-    };
+    return { results: [], total: 0, hasMore: false };
   },
 
   // Helper mapping TMDB Genre Names to IDs

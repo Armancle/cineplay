@@ -13,6 +13,7 @@ let activeExperience = "All";
 let searchQuery = "";
 let sortBy = "rating-desc";
 let currentPage = 1;
+let isLoading = false;
 const itemsPerPage = 8;
 
 function initGamesPage() {
@@ -147,6 +148,7 @@ function initGamesPage() {
       currentPage++;
       loadGamesGrid(false);
     });
+    initInfiniteScroll(loadMoreBtn);
   }
 
   window.addEventListener("favoritesChanged", syncFavoritesState);
@@ -158,6 +160,9 @@ async function loadGamesGrid(resetPage = true) {
   const loadMoreBtn = document.getElementById("btn-load-more");
   const countText = document.getElementById("game-match-count-text");
 
+  if (isLoading) return;
+  isLoading = true;
+
   if (resetPage) {
     currentPage = 1;
     showGridSkeletons();
@@ -168,7 +173,8 @@ async function loadGamesGrid(resetPage = true) {
   updateActiveGameChips();
 
   try {
-    const response = await window.CinePlayAPI.fetchGames({
+    // ✅ Try API first
+    let response = await window.CinePlayAPI.fetchGames({
       query: searchQuery,
       genre: activeGenre,
       platform: activePlatform,
@@ -177,11 +183,36 @@ async function loadGamesGrid(resetPage = true) {
       limit: itemsPerPage
     });
 
-    let results = response.results;
+    let results = response.results || [];
 
+    // ✅ If API returned empty or failed, use local data
+    if (results.length === 0 && window.gamesData) {
+      console.warn("[Games] API returned empty, using local fallback");
+      let localGames = [...window.gamesData];
+      if (searchQuery) localGames = localGames.filter(g => 
+        g.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (g.genre && g.genre.some(gen => gen.toLowerCase().includes(searchQuery.toLowerCase())))
+      );
+      if (activeGenre !== "All") localGames = localGames.filter(g => g.genre && g.genre.includes(activeGenre));
+      if (activePlatform !== "All") localGames = localGames.filter(g => g.platform && g.platform.includes(activePlatform));
+      
+      // Sort
+      localGames.sort((a, b) => {
+        if (sortBy === "rating-desc") return b.rating - a.rating;
+        if (sortBy === "year-desc") return b.year - a.year;
+        return 0;
+      });
+      
+      const start = (currentPage - 1) * itemsPerPage;
+      const end = start + itemsPerPage;
+      results = localGames.slice(start, end);
+      response = { results, total: localGames.length, hasMore: end < localGames.length };
+    }
+
+    // Apply price filter
     if (activePrice !== "All") {
       results = results.filter(g => {
-        if (activePrice === "Free") return g.price === "Free";
+        if (activePrice === "Free") return g.price === "Free" || g.price === "0";
         const priceNum = parseInt((g.price || "0").replace(/[^\d]/g, "") || "0");
         if (activePrice === "Under500") return g.price !== "Free" && priceNum <= 1000;
         if (activePrice === "Under2000") return g.price !== "Free" && priceNum <= 2500;
@@ -190,6 +221,7 @@ async function loadGamesGrid(resetPage = true) {
       });
     }
 
+    // Apply experience filter
     if (activeExperience !== "All") {
       results = results.filter(g => {
         const desc = (g.description || "").toLowerCase();
@@ -219,19 +251,99 @@ async function loadGamesGrid(resetPage = true) {
       if (resetPage && grid) grid.innerHTML = "";
       if (emptyState) emptyState.style.display = resetPage ? "block" : "none";
       if (loadMoreBtn) loadMoreBtn.style.display = "none";
+      isLoading = false;
       return;
     }
 
     if (emptyState) emptyState.style.display = "none";
     window.CinePlay.renderGames(results, grid, !resetPage);
-    if (loadMoreBtn) loadMoreBtn.style.display = response.hasMore ? "inline-flex" : "none";
+    
+    if (loadMoreBtn) {
+      const hasMore = response.hasMore !== undefined ? response.hasMore : results.length === itemsPerPage;
+      loadMoreBtn.style.display = hasMore ? "inline-flex" : "none";
+    }
+
+    isLoading = false;
   } catch (error) {
     console.error("Error loading games:", error);
+    const grid = document.getElementById("games-grid");
+    const emptyState = document.getElementById("games-empty");
+    
+    // ✅ Try local fallback if API fails
+    if (window.gamesData && resetPage) {
+      console.warn("[Games] API error, using local fallback");
+      let localGames = [...window.gamesData];
+      if (searchQuery) localGames = localGames.filter(g => 
+        g.title.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      if (activeGenre !== "All") localGames = localGames.filter(g => g.genre && g.genre.includes(activeGenre));
+      
+      localGames.sort((a, b) => {
+        if (sortBy === "rating-desc") return b.rating - a.rating;
+        if (sortBy === "year-desc") return b.year - a.year;
+        return 0;
+      });
+      
+      const start = (currentPage - 1) * itemsPerPage;
+      const end = start + itemsPerPage;
+      const results = localGames.slice(start, end);
+      
+      if (results.length > 0) {
+        if (emptyState) emptyState.style.display = "none";
+        window.CinePlay.renderGames(results, grid, false);
+        if (loadMoreBtn) {
+          loadMoreBtn.style.display = end < localGames.length ? "inline-flex" : "none";
+        }
+        isLoading = false;
+        return;
+      }
+    }
+    
     if (loadMoreBtn) {
       loadMoreBtn.innerHTML = `<i class="fa-solid fa-arrows-spin"></i> Load More Games`;
       loadMoreBtn.disabled = false;
+      loadMoreBtn.style.display = "none";
     }
+    if (emptyState) emptyState.style.display = "none";
+    if (grid && resetPage) {
+      grid.innerHTML = `
+        <div class="empty-state error-state" style="grid-column: 1/-1; text-align: center; padding: 50px 20px;">
+          <i class="fa-solid fa-triangle-exclamation" style="font-size: 44px; color: var(--accent-red); margin-bottom: 16px;"></i>
+          <h3 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">Unable to Load Games</h3>
+          <p style="font-size: 14px; color: var(--text-secondary); max-width: 460px; margin: 0 auto 20px;">We encountered an issue fetching games. Please check your internet connection or try again.</p>
+          <button class="btn btn-primary" style="border-radius: 25px; padding: 10px 24px;" onclick="loadGamesGrid(true)">
+            <i class="fa-solid fa-rotate-right"></i> Retry
+          </button>
+        </div>
+      `;
+    }
+    isLoading = false;
   }
+}
+
+function initInfiniteScroll(sentinelEl) {
+  if (!("IntersectionObserver" in window) || !sentinelEl) return;
+
+  let observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      const btn = document.getElementById("btn-load-more");
+      if (
+        entry.isIntersecting &&
+        btn &&
+        btn.style.display !== "none" &&
+        !btn.disabled &&
+        !isLoading
+      ) {
+        currentPage++;
+        loadGamesGrid(false);
+      }
+    });
+  }, { 
+    rootMargin: "300px 0px",
+    threshold: 0.1
+  });
+
+  observer.observe(sentinelEl);
 }
 
 function updateActiveGameChips() {

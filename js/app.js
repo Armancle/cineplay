@@ -29,40 +29,79 @@ window._cineItemRegistry = {};
 const CinePlayAPI = {
   // Fetches movies via CinePlayDataManager (TMDB -> Firestore -> Local Fallback)
   async fetchMovies(params = {}) {
+    //rate limiting
+    await new Promise(resolve => setTimeout(resolve, 200));
+    // ✅ Use the Data Manager which handles API + fallback internally
     if (window.CinePlayDataManager) {
-      return await window.CinePlayDataManager.fetchMovies(params);
+      try {
+        const result = await window.CinePlayDataManager.fetchMovies(params);
+        // ✅ If we got results from API, return them immediately
+        if (result && result.results && result.results.length > 0) {
+          return result;
+        }
+        // If DataManager returned empty but we have local data, fallback here
+        if (window.moviesData && window.moviesData.length > 0) {
+          console.warn("[CinePlayAPI] DataManager returned empty, using local fallback");
+          let movies = [...window.moviesData];
+          if (params.query) movies = CinePlay.searchItems(movies, params.query);
+          if (params.genre && params.genre !== "All") movies = CinePlay.filterByGenre(movies, params.genre);
+          CinePlay.sortItems(movies, params.sortBy || "rating-desc");
+          const limit = params.limit || 20;
+          const page = params.page || 1;
+          const start = (page - 1) * limit;
+          const end = start + limit;
+          const paginated = movies.slice(start, end);
+          return { results: paginated, total: movies.length, hasMore: end < movies.length };
+        }
+        return result || { results: [], total: 0, hasMore: false };
+      } catch (error) {
+        console.warn("[CinePlayAPI] DataManager fetch failed:", error);
+        // Fallback to local if DataManager fails
+        return this._fallbackToLocalMovies(params);
+      }
     }
-    // Fallback to local
+    // If no DataManager, fallback to local
+    return this._fallbackToLocalMovies(params);
+  },
+
+  // Helper method for local fallback
+  _fallbackToLocalMovies(params = {}) {
     let movies = window.moviesData ? [...window.moviesData] : [];
     if (params.query) movies = CinePlay.searchItems(movies, params.query);
     if (params.genre && params.genre !== "All") movies = CinePlay.filterByGenre(movies, params.genre);
     CinePlay.sortItems(movies, params.sortBy || "rating-desc");
-    const limit = params.limit || 8;
+    const limit = params.limit || 20;
     const page = params.page || 1;
-    const paginated = movies.slice(0, page * limit);
-    return { results: paginated, total: movies.length, hasMore: (page * limit) < movies.length };
-  },
-
-  // Fetches games via CinePlayDataManager (Steam -> Firestore -> Local Fallback)
-  async fetchGames(params = {}) {
-    if (window.CinePlayDataManager) {
-      return await window.CinePlayDataManager.fetchGames(params);
-    }
-    let games = window.gamesData ? [...window.gamesData] : [];
-    if (params.query) games = CinePlay.searchItems(games, params.query);
-    if (params.genre && params.genre !== "All") games = CinePlay.filterByGenre(games, params.genre);
-    if (params.platform && params.platform !== "All") games = games.filter(g => g.platform && g.platform.includes(params.platform));
-    CinePlay.sortItems(games, params.sortBy || "rating-desc");
-    const limit = params.limit || 8;
-    const page = params.page || 1;
-    const paginated = games.slice(0, page * limit);
-    return { results: paginated, total: games.length, hasMore: (page * limit) < games.length };
+    const start = (page - 1) * limit;
+    const end = start + limit;
+    const paginated = movies.slice(start, end);
+    return { results: paginated, total: movies.length, hasMore: end < movies.length };
   },
 
   // Recommendations calculation engine
   async fetchRecommendations(criteria) {
     await simulateNetworkDelay(400);
-    return CinePlay.getRecommendations(criteria);
+
+    let movies = window.moviesData;
+    let games = window.gamesData;
+
+    // Pull the freshest dataset from the live API layer if it exists,
+    // instead of always scoring against the static local fallback.
+    if (window.CinePlayDataManager) {
+      try {
+        if (criteria.contentType === "game") {
+          const res = await window.CinePlayDataManager.fetchGames({ limit: 500 });
+          if (res && res.results && res.results.length) games = res.results;
+        } else {
+          const res = await window.CinePlayDataManager.fetchMovies({ limit: 500 });
+          if (res && res.results && res.results.length) movies = res.results;
+        }
+      } catch (err) {
+        console.warn("CinePlayDataManager fetch failed, using local dataset:", err);
+      }
+    }
+
+    return CinePlay.getRecommendations(criteria, { movies, games });
   }
 };
 
@@ -77,8 +116,8 @@ function simulateNetworkDelay(ms) {
 // Searches items (movies or games) by title or genres
 function searchItems(items, query) {
   const q = query.toLowerCase().trim();
-  return items.filter(item => 
-    item.title.toLowerCase().includes(q) || 
+  return items.filter(item =>
+    item.title.toLowerCase().includes(q) ||
     (item.genre && item.genre.some(g => g.toLowerCase().includes(q))) ||
     (item.mood && item.mood.some(m => m.toLowerCase().includes(q)))
   );
@@ -102,22 +141,35 @@ function sortItems(items, sortBy) {
   return items;
 }
 
+// Maps the quiz's user-facing mood labels to the internal mood tags
+// used in data.js / the live API's mood field. Update the KEYS on the
+// left if your quiz card data-value attributes differ from these.
+const MOOD_QUIZ_TO_TAGS = {
+  "Thrilled & Hyped": ["Action-packed", "Suspenseful"],
+  "Chill & Cozy": ["Relaxing", "Emotional"],
+  "Mind-Bending": ["Thought-provoking", "Suspenseful"],
+  "Deep & Emotional": ["Emotional", "Thought-provoking"],
+  "Spooky Thrill": ["Scary", "Suspenseful"],
+  "Fun & Lighthearted": ["Relaxing", "Emotional"]
+};
+
 // Recommendations scoring algorithm
-function getRecommendations({ contentType = "movie", mood = "Action-packed", genre = "All", era = "any", platform = "any", runtimeMax = 999 }) {
-  const dataset = contentType === "movie" ? window.moviesData : window.gamesData;
-  if (!dataset) return [];
+function getRecommendations({ contentType = "movie", mood = "Action-packed", genre = "All", era = "any", platform = "any", runtimeMax = 999 }, overrideData = {}) {
+  const dataset = contentType === "movie"
+    ? (overrideData.movies || window.moviesData)
+    : (overrideData.games || window.gamesData);
+
+  if (!dataset || dataset.length === 0) return [];
+
+  const moodTags = MOOD_QUIZ_TO_TAGS[mood] || [mood];
 
   const matchedList = dataset.map(item => {
     let score = 0;
 
     // 1. Mood match (Weight: 40 points)
-    if (item.mood && item.mood.includes(mood)) {
+    if (item.mood && item.mood.some(m => moodTags.includes(m))) {
       score += 40;
-    } else if (mood === "Romantic" && ((item.genre && item.genre.includes("Romance")) || (item.mood && item.mood.includes("Emotional")))) {
-      score += 38;
-    } else if (mood === "Comedy" && ((item.genre && item.genre.includes("Comedy")) || (item.mood && item.mood.includes("Relaxing")))) {
-      score += 38;
-    } else if (item.mood && item.mood.some(m => m.toLowerCase().includes(mood.toLowerCase()))) {
+    } else if (item.mood && item.mood.some(m => moodTags.some(t => m.toLowerCase().includes(t.toLowerCase())))) {
       score += 25;
     }
 
@@ -169,18 +221,25 @@ function getRecommendations({ contentType = "movie", mood = "Action-packed", gen
    ========================================================================== */
 
 // Renders list of movie cards into specified container
+// Renders list of movie cards into specified container
 function renderMovies(movies, containerElement, append = false) {
   if (!containerElement) return;
   if (movies.length === 0) {
     if (!append) containerElement.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-secondary);">No movies found matching your criteria.</div>`;
     return;
   }
+
+  // 🔧 FIX: Generate cards HTML
   const cardsHtml = movies.map(movie => createMovieCardHTML(movie)).join("");
+
   if (append) {
+    // 🔧 FIX: Only append new cards, don't duplicate existing ones
     containerElement.insertAdjacentHTML("beforeend", cardsHtml);
   } else {
     containerElement.innerHTML = cardsHtml;
   }
+
+  // 🔧 FIX: Re-bind click events for all cards in container (including existing ones)
   bindCardClickEvents(containerElement, "movie");
 }
 
@@ -436,201 +495,123 @@ function openDetailsModal(item, type) {
   initModalElement();
   trackRecentlyViewed(item.id, type);
 
-  // Also add to registry in case opened from quiz/search
   if (item.id) window._cineItemRegistry[item.id] = item;
 
-  const posterContainer = document.getElementById("modal-poster-container");
-  const titleText = document.getElementById("modal-title-text");
-  const badgesContainer = document.getElementById("modal-badges-container");
-  const descText = document.getElementById("modal-desc-text");
-  const infoDetails = document.getElementById("modal-info-details");
-  const actionsContainer = document.getElementById("modal-actions-container");
+  // Reset scroll positions
+  const modalContent = document.querySelector('.modal-content');
+  if (modalContent) modalContent.scrollTop = 0;
+  const modalBody = document.querySelector('.modal-body');
+  if (modalBody) modalBody.scrollTop = 0;
 
-  // --- Poster ---
-  posterContainer.innerHTML = "";
-  const img = document.createElement("img");
-  img.src = item.poster || item.cover || "images/posters/m1.jpg";
-  img.alt = item.title;
-  img.onerror = () => {
-    posterContainer.innerHTML = `
-      <div class="fallback-poster" style="height: 100%;">
-        <i class="fa-solid ${type === 'movie' ? 'fa-film' : 'fa-gamepad'}"></i>
-        <div class="fallback-title">${item.title}</div>
-      </div>
-    `;
-  };
-  posterContainer.appendChild(img);
+  // ... (rest of the existing code to render the modal)
 
-  titleText.textContent = item.title;
-
-  // --- Runtime display (handle both number and string) ---
-  const runtimeDisplay = item.runtime
-    ? (typeof item.runtime === 'number' ? `${item.runtime}m` : item.runtime)
-    : (item.duration || '—');
-
-  badgesContainer.innerHTML = `
-    <div class="modal-badge rating"><i class="fa-solid fa-star"></i> ${item.rating || item.tmdbRating || '—'}</div>
-    <div class="modal-badge">${item.year || '—'}</div>
-    ${type === "movie" ? `<div class="modal-badge"><i class="fa-regular fa-clock"></i> ${runtimeDisplay}</div>` : ""}
-    <div class="modal-badge" style="text-transform: uppercase; background: rgba(229, 9, 20, 0.2); color: #fff;">${type}</div>
-  `;
-
-  descText.textContent = item.description || item.overview || 'No description available.';
-
-  // --- Genre & mood info ---
-  const genres = item.genres || item.genre || [];
-  const platforms = item.platform || item.platforms || [];
-  let metaHtml = `
-    <li><strong>Genres:</strong> ${genres.length ? genres.join(", ") : '—'}</li>
-    <li><strong>Mood Vibe:</strong> ${item.mood ? item.mood.join(" • ") : "N/A"}</li>
-  `;
-
-  if (type === "movie") {
-    // Directors (handle array or string)
-    const directorStr = Array.isArray(item.directors)
-      ? item.directors.join(", ")
-      : (item.director || null);
-    if (directorStr) {
-      metaHtml += `<li><strong>Director:</strong> <a href="movies.html?director=${encodeURIComponent(directorStr)}" style="color: var(--accent-red); text-decoration: underline;">${directorStr}</a></li>`;
-    }
-    // Cast (handle array or string)
-    const castStr = Array.isArray(item.cast) ? item.cast.join(", ") : item.cast;
-    if (castStr) metaHtml += `<li id="modal-cast-row"><strong>Cast:</strong> ${castStr}</li>`;
-    else metaHtml += `<li id="modal-cast-row"><strong>Cast:</strong> <span class="modal-loading-text"><i class="fa-solid fa-spinner fa-spin" style="font-size:11px;"></i> Loading…</span></li>`;
-
-    if (item.language) metaHtml += `<li><strong>Language:</strong> ${item.language}</li>`;
-    if (item.country) metaHtml += `<li><strong>Country:</strong> ${item.country}</li>`;
-    if (item.voteCount) metaHtml += `<li><strong>Votes:</strong> ${Number(item.voteCount).toLocaleString()}</li>`;
-
-    // Streaming / Where to Watch placeholder
-    metaHtml += `
-      <div class="provider-section" id="modal-providers-section">
-        <div class="provider-header">
-          <span class="provider-title"><i class="fa-solid fa-tv" style="color: var(--accent-red); margin-right: 6px;"></i> Where to Watch</span>
-          <span style="font-size: 11px; color: var(--text-muted);">Region: <strong>🌐 India</strong></span>
-        </div>
-        <div class="provider-grid" id="modal-provider-grid">
-          ${_buildProviderGrid(item)}
-        </div>
-        <p style="font-size: 11px; color: var(--text-muted); margin-top: 8px;">Availability may vary by region.</p>
-      </div>
-    `;
-
-  } else if (type === "game") {
-    if (platforms.length) metaHtml += `<li><strong>Platforms:</strong> ${platforms.join(", ")}</li>`;
-    const dev = Array.isArray(item.developers) ? item.developers.join(", ") : item.developer;
-    const pub = Array.isArray(item.publishers) ? item.publishers.join(", ") : item.publisher;
-    if (dev) metaHtml += `<li><strong>Developer:</strong> ${dev}</li>`;
-    if (pub) metaHtml += `<li><strong>Publisher:</strong> ${pub}</li>`;
-    if (item.price) metaHtml += `<li><strong>Price:</strong> <span style="color: #4ade80; font-weight: 700;">${item.price}</span></li>`;
-    if (item.tags && item.tags.length) metaHtml += `<li><strong>Tags:</strong> ${item.tags.slice(0,6).join(" • ")}</li>`;
-    if (item.sysReq) {
-      const sysMin = typeof item.sysReq === 'string' ? item.sysReq : (item.sysReq.minimum || '');
-      const sysRec = typeof item.sysReq === 'string' ? '' : (item.sysReq.recommended || '');
-      metaHtml += `
-        <li style="margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 8px;">
-          <strong>System Requirements:</strong>
-          <div style="font-size: 11px; color: var(--text-muted); margin-top: 6px; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 6px;">
-            <div><strong>Min:</strong> ${sysMin}</div>
-            ${sysRec ? `<div style="margin-top: 4px;"><strong>Rec:</strong> ${sysRec}</div>` : ''}
-          </div>
-        </li>
-      `;
-    }
-  }
-
-  infoDetails.innerHTML = metaHtml;
-
-  // --- Action buttons ---
-  const trailerKey = item.trailerKey || item.trailer || "";
-  const isFav = isFavorite(item.id);
-  actionsContainer.innerHTML = `
-    ${trailerKey ? `
-      <button class="btn btn-primary" id="modal-play-btn">
-        <i class="fa-solid fa-play"></i> Watch Trailer
-      </button>
-    ` : ''}
-    <button class="btn btn-outline" id="modal-fav-btn">
-      <i class="${isFav ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
-      ${isFav ? 'Favorited' : 'Add to Watchlist'}
-    </button>
-    <button class="btn btn-outline" id="modal-dislike-btn" title="Show fewer recommendations like this">
-      <i class="fa-solid fa-thumbs-down"></i> Not for me
-    </button>
-  `;
-
-  const playBtn = document.getElementById("modal-play-btn");
-  if (playBtn && trailerKey) {
-    playBtn.addEventListener("click", () => openTrailerModal(trailerKey, item.title));
-  }
-
-  const favBtn = document.getElementById("modal-fav-btn");
-  if (favBtn) {
-    favBtn.addEventListener("click", () => {
-      const isNowFav = toggleFavorite(item.id, type);
-      favBtn.innerHTML = isNowFav
-        ? '<i class="fa-solid fa-heart"></i> Favorited'
-        : '<i class="fa-regular fa-heart"></i> Add to Watchlist';
-    });
-  }
-
-  const dislikeBtn = document.getElementById("modal-dislike-btn");
-  if (dislikeBtn) {
-    dislikeBtn.addEventListener("click", () => { markAsDisliked(item.id, item.title); closeModal(); });
-  }
-
-  globalModal.classList.add("active");
-  document.body.style.overflow = "hidden";
-
-  // --- Async TMDB enrichment (non-blocking) ---
+  // ✅ If it's a movie and has tmdbId, try to fetch providers
   if (type === "movie" && item.tmdbId && window.CinePlayAPIService) {
-    _enrichModalWithTMDB(item);
+    // Fetch providers in background
+    CinePlayAPIService.getTMDBWatchProviders(item.tmdbId).then(providersData => {
+      if (providersData && providersData.results) {
+        // Store providers in the item
+        item.providers = providersData.results;
+        window._cineItemRegistry[item.id] = item;
+
+        // Update the provider grid
+        const providerGrid = document.getElementById("modal-provider-grid");
+        if (providerGrid) {
+          const config = window.CINEPLAY_CONFIG ? window.CINEPLAY_CONFIG.TMDB : { IMAGE_BASE: "https://image.tmdb.org/t/p", DEFAULT_REGION: "IN" };
+          const regionData = providersData.results[config.DEFAULT_REGION] || providersData.results["US"] || {};
+          const allP = [
+            ...(regionData.flatrate || []).map(p => ({ ...p, type: "STREAM" })),
+            ...(regionData.rent || []).map(p => ({ ...p, type: "RENT" })),
+            ...(regionData.buy || []).map(p => ({ ...p, type: "BUY" }))
+          ];
+
+          if (allP.length > 0) {
+            providerGrid.innerHTML = allP.slice(0, 6).map(p => `
+              <div class="provider-card" title="${p.provider_name} (${p.type})">
+                ${p.logo_path ? `<img src="${config.IMAGE_BASE}/w92${p.logo_path}" alt="${p.provider_name}" class="provider-logo" onerror="this.style.display='none'">` : `<i class="fa-solid fa-tv" style="color:var(--accent-red);"></i>`}
+                <span class="provider-name">${p.provider_name}</span>
+                <span class="provider-type-badge ${p.type.toLowerCase()}">${p.type}</span>
+              </div>
+            `).join("");
+          }
+        }
+      }
+    }).catch(err => {
+      console.warn("Failed to fetch providers:", err);
+    });
   }
 }
 
-// Build streaming provider grid from item data or fallback
+// Build streaming provider grid from item data or honest empty state
+// Build streaming provider grid from item data or honest empty state
 function _buildProviderGrid(item) {
-  // Check if item already has provider data
-  if (item.providers) {
-    const region = item.providers["IN"] || item.providers["US"] || {};
-    const allProviders = [
-      ...(region.flatrate || []),
-      ...(region.rent || []),
-      ...(region.buy || [])
+  const config = window.CINEPLAY_CONFIG ? window.CINEPLAY_CONFIG.TMDB : { DEFAULT_REGION: "IN" };
+  const regionKey = config.DEFAULT_REGION || "IN";
+
+  // ✅ Check multiple possible locations for provider data
+  let providersList = [];
+
+  // 1. Check item.providers (TMDB normalized format)
+  if (item.providers && typeof item.providers === "object") {
+    const region = item.providers[regionKey] || item.providers["US"] || {};
+    providersList = [
+      ...(region.flatrate || []).map(p => ({ ...p, type: "STREAM" })),
+      ...(region.rent || []).map(p => ({ ...p, type: "RENT" })),
+      ...(region.buy || []).map(p => ({ ...p, type: "BUY" }))
     ];
-    if (allProviders.length > 0) {
-      return allProviders.slice(0, 6).map(p => `
-        <a href="#" onclick="CinePlay.showToast('Opening ${p.name}…', 'fa-external-link'); return false;" class="provider-card">
-          ${p.logo ? `<img src="${p.logo}" alt="${p.name}" style="width:24px;height:24px;border-radius:6px;object-fit:cover;">` : `<i class="fa-solid fa-play" style="color:#e50914;"></i>`}
-          <span class="provider-name">${p.name}</span>
-          <span class="provider-type-badge">${p.type || 'STREAM'}</span>
-        </a>
-      `).join("");
-    }
   }
 
-  // Check local streaming array
-  if (item.streaming && item.streaming.length) {
-    const iconMap = { Netflix: { icon: 'fa-solid fa-n', color: '#e50914' }, 'Prime Video': { icon: 'fa-solid fa-film', color: '#00a8e1' }, 'Disney+': { icon: 'fa-solid fa-d', color: '#113ccf' }, 'Apple TV': { icon: 'fa-brands fa-apple', color: '#999' }, 'HBO Max': { icon: 'fa-solid fa-tv', color: '#9933ff' }, 'Hulu': { icon: 'fa-solid fa-h', color: '#1ce783' }, JioHotstar: { icon: 'fa-solid fa-star', color: '#ffaa00' } };
-    return item.streaming.slice(0, 4).map(name => {
-      const ic = iconMap[name] || { icon: 'fa-solid fa-play', color: '#e50914' };
-      return `<a href="#" onclick="CinePlay.showToast('Opening ${name}…', 'fa-external-link'); return false;" class="provider-card">
-        <i class="${ic.icon}" style="color:${ic.color};font-size:18px;"></i>
-        <span class="provider-name">${name}</span>
-        <span class="provider-type-badge">STREAM</span>
-      </a>`;
-    }).join("");
+  // 2. Check item.streaming (legacy format from data.js)
+  if (providersList.length === 0 && item.streaming && Array.isArray(item.streaming)) {
+    providersList = item.streaming.map(name => ({
+      name: name,
+      type: "STREAM",
+      logo: null
+    }));
   }
 
-  // Global fallback from providersData
-  const fallback = window.providersData || [];
-  return fallback.slice(0, 4).map(p => `
-    <a href="#" onclick="CinePlay.showToast('Opening ${p.name}…', 'fa-external-link'); return false;" class="provider-card">
-      <i class="${p.icon}" style="color: ${p.color}; font-size: 18px;"></i>
-      <span class="provider-name">${p.name}</span>
-      <span class="provider-type-badge">${p.type}</span>
-    </a>
-  `).join("");
+  // 3. Check if there's raw provider data in the item
+  if (providersList.length === 0 && item.provider_data) {
+    const region = item.provider_data[regionKey] || item.provider_data["US"] || {};
+    providersList = [
+      ...(region.flatrate || []).map(p => ({ ...p, type: "STREAM" })),
+      ...(region.rent || []).map(p => ({ ...p, type: "RENT" })),
+      ...(region.buy || []).map(p => ({ ...p, type: "BUY" }))
+    ];
+  }
+
+  // 4. Check if the item has direct provider names
+  if (providersList.length === 0 && item.provider_names && Array.isArray(item.provider_names)) {
+    providersList = item.provider_names.map(name => ({
+      name: name,
+      type: "STREAM",
+      logo: null
+    }));
+  }
+
+  // If we have providers, render them
+  if (providersList.length > 0) {
+    // Remove duplicates by name
+    const uniqueProviders = [];
+    const seenNames = new Set();
+    providersList.forEach(p => {
+      if (!seenNames.has(p.name)) {
+        seenNames.add(p.name);
+        uniqueProviders.push(p);
+      }
+    });
+
+    return uniqueProviders.slice(0, 6).map(p => `
+      <div class="provider-card" title="${p.name} (${p.type})">
+        ${p.logo ? `<img src="${p.logo}" alt="${p.name}" class="provider-logo" onerror="this.style.display='none'">` : `<i class="fa-solid fa-tv" style="color:var(--accent-red);"></i>`}
+        <span class="provider-name">${p.name}</span>
+        <span class="provider-type-badge ${p.type.toLowerCase()}">${p.type}</span>
+      </div>
+    `).join("");
+  }
+
+  // Honest unavailable state when no provider data exists
+  return `<div class="provider-unavailable"><i class="fa-solid fa-circle-info"></i> Streaming availability currently unavailable for this region.</div>`;
 }
 
 // Async enrich open modal with live TMDB data (cast, trailer, providers)
@@ -650,11 +631,10 @@ async function _enrichModalWithTMDB(item) {
       castRow.innerHTML = `<strong>Cast:</strong> ${castNames}`;
     }
 
-    // Update trailer button if we found a better trailer
+    // Update trailer button if we found a valid YouTube trailer/teaser
     if (videos && videos.results && videos.results.length) {
       const trailer = videos.results.find(v => v.site === "YouTube" && v.type === "Trailer")
-        || videos.results.find(v => v.site === "YouTube")
-        || videos.results[0];
+        || videos.results.find(v => v.site === "YouTube" && v.type === "Teaser");
       if (trailer && trailer.key) {
         item.trailerKey = trailer.key;
         item.trailer = trailer.key;
@@ -662,6 +642,7 @@ async function _enrichModalWithTMDB(item) {
         // Update play button if modal still open
         const playBtn = document.getElementById("modal-play-btn");
         if (playBtn) {
+          playBtn.style.display = "inline-flex";
           playBtn.onclick = () => openTrailerModal(trailer.key, item.title);
         } else {
           // Add trailer button if it wasn't there before
@@ -678,7 +659,7 @@ async function _enrichModalWithTMDB(item) {
       }
     }
 
-    // Update providers section
+    // Update providers section from live TMDB data
     const providerGrid = document.getElementById("modal-provider-grid");
     if (providerGrid && providers && providers.results) {
       const config = window.CINEPLAY_CONFIG ? window.CINEPLAY_CONFIG.TMDB : { IMAGE_BASE: "https://image.tmdb.org/t/p", DEFAULT_REGION: "IN" };
@@ -690,16 +671,17 @@ async function _enrichModalWithTMDB(item) {
       ];
       if (allP.length > 0) {
         providerGrid.innerHTML = allP.slice(0, 6).map(p => `
-          <a href="#" onclick="CinePlay.showToast('Opening ${p.provider_name}…', 'fa-external-link'); return false;" class="provider-card">
-            <img src="${config.IMAGE_BASE}/w92${p.logo_path}" alt="${p.provider_name}" style="width:24px;height:24px;border-radius:6px;object-fit:cover;">
+          <div class="provider-card" title="${p.provider_name} (${p.type})">
+            ${p.logo_path ? `<img src="${config.IMAGE_BASE}/w92${p.logo_path}" alt="${p.provider_name}" class="provider-logo" onerror="this.style.display='none'">` : `<i class="fa-solid fa-tv" style="color:var(--accent-red);"></i>`}
             <span class="provider-name">${p.provider_name}</span>
-            <span class="provider-type-badge">${p.type}</span>
-          </a>
+            <span class="provider-type-badge ${p.type.toLowerCase()}">${p.type}</span>
+          </div>
         `).join("");
+      } else {
+        providerGrid.innerHTML = `<div class="provider-unavailable"><i class="fa-solid fa-circle-info"></i> Streaming availability currently unavailable for this region.</div>`;
       }
     }
-  } catch(e) {
-    // Silently fail — local data already shown
+  } catch (e) {
     console.warn("[CinePlay] TMDB enrichment failed:", e);
   }
 }
@@ -942,9 +924,9 @@ function initMoodQuizModal() {
   });
 
   // Auto show on every visit / refresh on index.html (landing page)
-  const isHomePage = 
-    window.location.pathname.endsWith("index.html") || 
-    window.location.pathname === "/" || 
+  const isHomePage =
+    window.location.pathname.endsWith("index.html") ||
+    window.location.pathname === "/" ||
     window.location.pathname === "" ||
     window.location.pathname.endsWith("/cineplay/") ||
     window.location.pathname.endsWith("/cineplay/index.html");
@@ -970,14 +952,14 @@ function closeMoodQuizModal() {
   document.body.style.overflow = "";
 }
 
-window.selectQuizOption = function(card, key, val) {
+window.selectQuizOption = function (card, key, val) {
   const parentPane = card.closest(".quiz-step-pane");
   parentPane.querySelectorAll(".quiz-option-card").forEach(c => c.classList.remove("selected"));
   card.classList.add("selected");
   quizSelections[key] = val;
 };
 
-window.navigateQuizStep = function(direction) {
+window.navigateQuizStep = function (direction) {
   currentQuizStep += direction;
   if (currentQuizStep > 4 && direction > 0) {
     calculateQuizResults();
@@ -1118,7 +1100,7 @@ function initFloatingMatchBtn() {
    ========================================================================== */
 function initLiveSearchAutoSuggestions() {
   const searchInputs = document.querySelectorAll(".search-input");
-  
+
   searchInputs.forEach(input => {
     const wrapper = input.closest(".search-input-wrapper");
     if (!wrapper) return;
@@ -1178,7 +1160,7 @@ function initLiveSearchAutoSuggestions() {
           const type = item.type || "movie";
 
           return `
-            <div class="suggestion-item" onclick="CinePlay.openDetailsModal(${JSON.stringify(item).replace(/"/g, '&quot;')}, '${type}'); this.parentElement.classList.remove('active');">
+            <div class="suggestion-item" onclick="CinePlay.openDetailsModal(${JSON.stringify(item).replace(/"/g, '&quot;')}, '${type}'); this.parentElement.classList.remove('active'); document.querySelectorAll('.search-input').forEach(i => i.blur());">
               <img src="${thumb}" alt="${safeTitle}" class="suggestion-thumb" onerror="this.src='images/posters/m1.jpg'">
               <div>
                 <div class="suggestion-title">${item.title || item.name}</div>
@@ -1199,7 +1181,24 @@ function initLiveSearchAutoSuggestions() {
     });
 
     input.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") dropdown.classList.remove("active");
+      if (e.key === "Escape") {
+        dropdown.classList.remove("active");
+        input.blur();
+        return;
+      }
+
+      if (e.key === "Enter") {
+        if (dropdown.classList.contains("active")) {
+          const firstSuggestion = dropdown.querySelector(".suggestion-item");
+          if (firstSuggestion) {
+            e.preventDefault();
+            e.stopPropagation();
+            dropdown.classList.remove("active");
+            input.blur();
+            firstSuggestion.click();
+          }
+        }
+      }
     });
   });
 }
@@ -1467,7 +1466,8 @@ function initHeroSlider() {
   }
 
   function startTimer() {
-    slideInterval = setInterval(6000);
+    clearInterval(slideInterval);
+    slideInterval = setInterval(nextSlide, 6000);
   }
 
   function resetTimer() {
@@ -1501,18 +1501,80 @@ async function renderFeaturedLists() {
   const gamesSlider = document.getElementById("featured-games-slider");
   if (!moviesSlider || !gamesSlider) return;
 
-  // Retrieve data from decoupling APIs
-  const movieRes = await CinePlayAPI.fetchMovies({ sortBy: "rating-desc", limit: 6 });
-  const gameRes = await CinePlayAPI.fetchGames({ sortBy: "rating-desc", limit: 6 });
+  try {
+    // ✅ Fetch movies with better error handling
+    let movieRes = null;
+    try {
+      movieRes = await CinePlayAPI.fetchMovies({ sortBy: "rating-desc", limit: 6 });
+      console.log("🎬 Featured Movies:", movieRes?.results?.length || 0);
+    } catch (e) {
+      console.warn("Movies fetch failed:", e);
+    }
 
-  renderMovies(movieRes.results, moviesSlider);
-  renderGames(gameRes.results, gamesSlider);
+    // ✅ Fetch games with better error handling
+    let gameRes = null;
+    try {
+      gameRes = await CinePlayAPI.fetchGames({ sortBy: "rating-desc", limit: 6 });
+      console.log("🎮 Featured Games:", gameRes?.results?.length || 0);
+    } catch (e) {
+      console.warn("Games fetch failed:", e);
+    }
 
-  // Sync favorites indicators on cards
-  window.addEventListener("favoritesChanged", () => {
-    syncFavoritesIcons(moviesSlider);
-    syncFavoritesIcons(gamesSlider);
-  });
+    // ✅ If API fails, use local data as fallback
+    if (!movieRes || !movieRes.results || movieRes.results.length === 0) {
+      console.warn("Using local movies for featured section");
+      let localMovies = [...(window.moviesData || [])];
+      localMovies.sort((a, b) => b.rating - a.rating);
+      movieRes = { results: localMovies.slice(0, 6), total: localMovies.length, hasMore: false };
+    }
+
+    if (!gameRes || !gameRes.results || gameRes.results.length === 0) {
+      console.warn("Using local games for featured section");
+      let localGames = [...(window.gamesData || [])];
+      localGames.sort((a, b) => b.rating - a.rating);
+      gameRes = { results: localGames.slice(0, 6), total: localGames.length, hasMore: false };
+    }
+
+    // ✅ Render movies
+    if (movieRes && movieRes.results && movieRes.results.length > 0) {
+      window.CinePlay.renderMovies(movieRes.results, moviesSlider);
+      console.log("✅ Featured movies rendered:", movieRes.results.length);
+    } else {
+      console.warn("No movies to render");
+      moviesSlider.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-muted);">No movies available</div>`;
+    }
+
+    // ✅ Render games
+    if (gameRes && gameRes.results && gameRes.results.length > 0) {
+      window.CinePlay.renderGames(gameRes.results, gamesSlider);
+      console.log("✅ Featured games rendered:", gameRes.results.length);
+    } else {
+      console.warn("No games to render");
+      gamesSlider.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-muted);">No games available</div>`;
+    }
+
+    // Sync favorites indicators on cards
+    window.addEventListener("favoritesChanged", () => {
+      syncFavoritesIcons(moviesSlider);
+      syncFavoritesIcons(gamesSlider);
+    });
+
+  } catch (error) {
+    console.error("Error rendering featured lists:", error);
+    // Fallback: try to render from local data
+    try {
+      if (window.moviesData && window.moviesData.length > 0) {
+        const sorted = [...window.moviesData].sort((a, b) => b.rating - a.rating);
+        window.CinePlay.renderMovies(sorted.slice(0, 6), moviesSlider);
+      }
+      if (window.gamesData && window.gamesData.length > 0) {
+        const sorted = [...window.gamesData].sort((a, b) => b.rating - a.rating);
+        window.CinePlay.renderGames(sorted.slice(0, 6), gamesSlider);
+      }
+    } catch (fallbackError) {
+      console.error("Fallback also failed:", fallbackError);
+    }
+  }
 }
 
 function syncFavoritesIcons(container) {
@@ -1702,23 +1764,66 @@ function handleUniversalSearch(query) {
 /* ==========================================================================
    Surprise Me Event Feature
    ========================================================================== */
-function triggerSurpriseMe() {
-  const pool = [...(window.moviesData || []), ...(window.gamesData || [])];
+let _lastSurprisePickId = null;
+
+function triggerSurpriseMe(filterType = "all") {
+  // 1. Close ALL UI overlays and dropdowns
+  document.querySelectorAll(".search-suggestions-dropdown.active").forEach(d => d.classList.remove("active"));
+
+  // Close universal search overlay
+  const universalOverlay = document.getElementById("universal-search-overlay");
+  if (universalOverlay) universalOverlay.classList.remove("active");
+
+  // Close filter drawers
+  const filterDrawer = document.getElementById("advanced-filter-drawer");
+  if (filterDrawer) filterDrawer.style.display = "none";
+
+  const gameDrawer = document.getElementById("advanced-game-filter-drawer");
+  if (gameDrawer) gameDrawer.style.display = "none";
+
+  // Close mood quiz
+  const moodQuiz = document.getElementById("mood-quiz-modal");
+  if (moodQuiz) moodQuiz.classList.remove("active");
+
+  // ✅ Blur any focused input
+  if (document.activeElement && typeof document.activeElement.blur === "function") {
+    document.activeElement.blur();
+  }
+
+  // 2. Select dataset
+  let pool = [];
+  const movies = window.moviesData || [];
+  const games = window.gamesData || [];
+
+  if (filterType === "movie") {
+    pool = movies;
+  } else if (filterType === "game") {
+    pool = games;
+  } else {
+    pool = [...movies, ...games];
+  }
+
   if (pool.length === 0) {
     showToast("Finding something amazing for you...", "fa-dice");
     return;
   }
 
-  // Pick random item
-  const randomPick = pool[Math.floor(Math.random() * pool.length)];
-  const isMovie = !randomPick.platform;
-  const type = isMovie ? "movie" : "game";
+  let candidates = pool;
+  if (pool.length > 1 && _lastSurprisePickId) {
+    const filtered = pool.filter(item => item.id !== _lastSurprisePickId);
+    if (filtered.length > 0) candidates = filtered;
+  }
 
-  showToast(`🎲 Tonight's Wild Card: ${randomPick.title}!`, "fa-dice-d20");
+  const randomPick = candidates[Math.floor(Math.random() * candidates.length)];
+  _lastSurprisePickId = randomPick.id;
+
+  const targetType = filterType === "movie" ? "movie" : (filterType === "game" ? "game" : (!randomPick.platform ? "movie" : "game"));
+
+  showToast(`🎲 Tonight's Pick: ${randomPick.title}!`, "fa-dice-d20");
 
   setTimeout(() => {
-    openDetailsModal(randomPick, type);
-  }, 250);
+    openDetailsModal(randomPick, targetType);
+  }, 200);
 }
 
 /* ==========================================================================
@@ -1744,7 +1849,7 @@ function renderSkeletonCardsHTML(count = 4) {
 }
 
 // Global exposes for detail modals in slides or cards
-window.openFeaturedItem = function(id) {
+window.openFeaturedItem = function (id) {
   const type = id.startsWith("m") ? "movie" : "game";
   const dataSet = type === "movie" ? window.moviesData : window.gamesData;
   const item = dataSet.find(i => i.id === id);

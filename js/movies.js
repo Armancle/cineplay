@@ -17,7 +17,8 @@ let selectedProvider = "All";
 let selectedActor = "";
 let selectedDirector = "";
 let currentPage = 1;
-const itemsPerPage = 20;
+let isLoading = false;
+const itemsPerPage = 12;
 
 function initMoviesPage() {
   const searchInput = document.getElementById("movie-search");
@@ -151,7 +152,7 @@ function initMoviesPage() {
       if (providerSelect) providerSelect.value = "All";
       if (ratingSlider) ratingSlider.value = 0;
       if (ratingDisplay) ratingDisplay.innerHTML = `<i class="fa-solid fa-star"></i> 0.0+`;
-      
+
       searchQuery = "";
       sortBy = "popularity-desc";
       activeGenre = "All";
@@ -179,6 +180,35 @@ function initMoviesPage() {
       currentPage++;
       loadMoviesGrid(false);
     });
+    initInfiniteScroll(loadMoreBtn);
+  }
+  function initInfiniteScroll(sentinelEl) {
+    if (!("IntersectionObserver" in window) || !sentinelEl) return;
+
+    let observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const btn = document.getElementById("btn-load-more");
+        if (
+          entry.isIntersecting &&
+          btn &&
+          btn.style.display !== "none" &&
+          !btn.disabled &&
+          !isLoading
+        ) {
+          console.log("🔄 Infinite scroll triggered: loading next page");
+          currentPage++;
+          loadMoviesGrid(false);
+        }
+      });
+    }, {
+      rootMargin: "300px 0px", // Load when 300px from bottom
+      threshold: 0.1
+    });
+
+    observer.observe(sentinelEl);
+
+    // Store observer for cleanup
+    window._scrollObserver = observer;
   }
 
   // Mode Tabs handling
@@ -226,6 +256,9 @@ async function loadMoviesGrid(resetPage = true) {
   const loadMoreBtn = document.getElementById("btn-load-more");
   const countText = document.getElementById("filter-match-count-text");
 
+  if (isLoading) return;
+  isLoading = true;
+
   if (resetPage) {
     currentPage = 1;
     showGridSkeletons();
@@ -235,103 +268,141 @@ async function loadMoviesGrid(resetPage = true) {
   }
   updateActiveChips();
 
-  try {
-    const response = await window.CinePlayAPI.fetchMovies({
-      query: searchQuery,
-      genre: activeGenre,
-      sortBy: sortBy,
-      page: currentPage,
-      limit: itemsPerPage
+  // ✅ Retry logic with exponential backoff
+  let retryCount = 0;
+  const maxRetries = 3;
+  let response = null;
+
+  while (retryCount < maxRetries) {
+    try {
+      response = await window.CinePlayAPI.fetchMovies({
+        query: searchQuery,
+        genre: activeGenre,
+        sortBy: sortBy,
+        page: currentPage,
+        limit: itemsPerPage
+      });
+
+      // If we got a valid response, break out of retry loop
+      if (response && response.results) {
+        console.log(`✅ Loaded page ${currentPage}: ${response.results.length} movies`);
+        break;
+      }
+    } catch (error) {
+      console.warn(`⚠️ Attempt ${retryCount + 1} failed for page ${currentPage}:`, error);
+      retryCount++;
+
+      if (retryCount < maxRetries) {
+        // Exponential backoff: 1s, 2s, 4s
+        const waitTime = Math.pow(2, retryCount - 1) * 1000;
+        console.log(`⏳ Waiting ${waitTime}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
+    }
+  }
+
+  // If all retries failed, show error but keep existing content
+  if (!response || !response.results) {
+    console.error(`❌ Failed to load page ${currentPage} after ${maxRetries} attempts`);
+    if (loadMoreBtn) {
+      loadMoreBtn.innerHTML = `<i class="fa-solid fa-rotate-right"></i> Retry`;
+      loadMoreBtn.disabled = false;
+      loadMoreBtn.style.display = "inline-flex";
+      loadMoreBtn.onclick = () => {
+        currentPage--;
+        loadMoviesGrid(false);
+      };
+    }
+    isLoading = false;
+    return;
+  }
+
+  let results = response.results || [];
+
+  // Apply client-side filters
+  if (minRating > 0) {
+    results = results.filter(m => m.rating >= minRating);
+  }
+  if (selectedLanguage !== "All") {
+    results = results.filter(m => (m.language || "").toLowerCase() === selectedLanguage.toLowerCase());
+  }
+  if (selectedCountry !== "All") {
+    results = results.filter(m => (m.country || "").toLowerCase() === selectedCountry.toLowerCase());
+  }
+  if (selectedEra !== "All") {
+    results = results.filter(m => {
+      const y = parseInt(m.year);
+      if (selectedEra === "2024") return y >= 2024;
+      if (selectedEra === "2020-2023") return y >= 2020 && y <= 2023;
+      if (selectedEra === "2010-2019") return y >= 2010 && y <= 2019;
+      if (selectedEra === "2000-2009") return y >= 2000 && y <= 2009;
+      if (selectedEra === "1990-1999") return y < 2000;
+      return true;
     });
+  }
+  if (selectedProvider !== "All") {
+    results = results.filter(m => {
+      if (m.streaming && Array.isArray(m.streaming)) {
+        return m.streaming.some(s => s.toLowerCase() === selectedProvider.toLowerCase());
+      }
+      return true;
+    });
+  }
 
-    let results = response.results;
+  if (countText) {
+    countText.innerHTML = `<i class="fa-solid fa-film" style="color: var(--accent-red);"></i> Found <strong>${results.length}</strong> matching movies`;
+  }
 
-    // Apply client-side filters
-    if (minRating > 0) {
-      results = results.filter(m => m.rating >= minRating);
-    }
-    if (selectedLanguage !== "All") {
-      results = results.filter(m => (m.language || "").toLowerCase() === selectedLanguage.toLowerCase());
-    }
-    if (selectedCountry !== "All") {
-      results = results.filter(m => (m.country || "").toLowerCase() === selectedCountry.toLowerCase());
-    }
-    if (selectedEra !== "All") {
-      results = results.filter(m => {
-        const y = parseInt(m.year);
-        if (selectedEra === "2024") return y >= 2024;
-        if (selectedEra === "2020-2023") return y >= 2020 && y <= 2023;
-        if (selectedEra === "2010-2019") return y >= 2010 && y <= 2019;
-        if (selectedEra === "2000-2009") return y >= 2000 && y <= 2009;
-        if (selectedEra === "1990-1999") return y < 2000;
-        return true;
-      });
-    }
-    if (selectedProvider !== "All") {
-      results = results.filter(m => {
-        if (m.streaming && Array.isArray(m.streaming)) {
-          return m.streaming.some(s => s.toLowerCase() === selectedProvider.toLowerCase());
-        }
-        return true;
-      });
-    }
+  const grid = document.getElementById("movies-grid");
+  const emptyState = document.getElementById("movies-empty");
 
-    if (countText) {
-      countText.innerHTML = `<i class="fa-solid fa-film" style="color: var(--accent-red);"></i> Found <strong>${results.length}</strong> matching movies`;
-    }
+  if (loadMoreBtn) {
+    loadMoreBtn.innerHTML = `<i class="fa-solid fa-arrows-spin"></i> Load More Movies`;
+    loadMoreBtn.disabled = false;
+    // Reset onclick to default behavior
+    loadMoreBtn.onclick = () => {
+      currentPage++;
+      loadMoviesGrid(false);
+    };
+  }
 
-    const grid = document.getElementById("movies-grid");
-    const emptyState = document.getElementById("movies-empty");
+  if (results.length === 0) {
+    if (resetPage) grid.innerHTML = "";
+    emptyState.style.display = resetPage ? "block" : "none";
+    if (loadMoreBtn) loadMoreBtn.style.display = "none";
+    isLoading = false;
+    return;
+  }
 
-    if (loadMoreBtn) {
-      loadMoreBtn.innerHTML = `<i class="fa-solid fa-arrows-spin"></i> Load More Movies`;
-      loadMoreBtn.disabled = false;
-    }
+  emptyState.style.display = "none";
 
-    if (results.length === 0) {
-      if (resetPage) grid.innerHTML = "";
-      emptyState.style.display = resetPage ? "block" : "none";
-      if (loadMoreBtn) loadMoreBtn.style.display = "none";
-      return;
-    }
+  // Render the movies
+  window.CinePlay.renderMovies(results, grid, !resetPage);
 
-    emptyState.style.display = "none";
-    window.CinePlay.renderMovies(results, grid, !resetPage);
-    if (loadMoreBtn) loadMoreBtn.style.display = response.hasMore ? "inline-flex" : "none";
-  } catch (error) {
-    console.error("Error loading movies grid:", error);
-    if (loadMoreBtn) {
-      loadMoreBtn.innerHTML = `<i class="fa-solid fa-arrows-spin"></i> Load More Movies`;
-      loadMoreBtn.disabled = false;
+  // ✅ Show load more button if there are more pages
+  if (loadMoreBtn) {
+    // TMDB usually has up to 500 pages, but we'll keep loading as long as we get results
+    const hasMore = response.hasMore !== undefined ? response.hasMore : results.length === itemsPerPage;
+    loadMoreBtn.style.display = hasMore ? "inline-flex" : "none";
+
+    // ✅ If we have more but scroll is near bottom, auto-trigger load
+    if (hasMore && !resetPage) {
+      // Check if we're near the bottom
+      const scrollPosition = window.scrollY + window.innerHeight;
+      const pageHeight = document.documentElement.scrollHeight;
+      if (pageHeight - scrollPosition < 500) {
+        // Auto-trigger next page if we're close to bottom
+        setTimeout(() => {
+          if (!isLoading && loadMoreBtn.style.display !== "none") {
+            currentPage++;
+            loadMoviesGrid(false);
+          }
+        }, 500);
+      }
     }
   }
-}
 
-    const grid = document.getElementById("movies-grid");
-    const emptyState = document.getElementById("movies-empty");
-
-    if (loadMoreBtn) {
-      loadMoreBtn.innerHTML = `<i class="fa-solid fa-arrows-spin"></i> Load More Movies`;
-      loadMoreBtn.disabled = false;
-    }
-
-    if (results.length === 0) {
-      if (resetPage) grid.innerHTML = "";
-      emptyState.style.display = resetPage ? "block" : "none";
-      if (loadMoreBtn) loadMoreBtn.style.display = "none";
-      return;
-    }
-
-    emptyState.style.display = "none";
-    window.CinePlay.renderMovies(results, grid, !resetPage);
-    if (loadMoreBtn) loadMoreBtn.style.display = response.hasMore ? "inline-flex" : "none";
-  } catch (error) {
-    console.error("Error loading movies grid:", error);
-    if (loadMoreBtn) {
-      loadMoreBtn.innerHTML = `<i class="fa-solid fa-arrows-spin"></i> Load More Movies`;
-      loadMoreBtn.disabled = false;
-    }
-  }
+  isLoading = false;
 }
 
 function updateActiveChips() {
@@ -370,7 +441,7 @@ function updateActiveChips() {
   }
 }
 
-window.clearFilter = function(filterType) {
+window.clearFilter = function (filterType) {
   if (filterType === "genre") activeGenre = "All";
   if (filterType === "rating") { minRating = 0; const r = document.getElementById("movie-min-rating"); if (r) r.value = 0; }
   if (filterType === "language") { selectedLanguage = "All"; const l = document.getElementById("movie-language"); if (l) l.value = "All"; }
@@ -401,7 +472,7 @@ function renderPeopleGrid(peopleList, title, subtitle) {
   `).join("");
 }
 
-window.selectPerson = function(personName) {
+window.selectPerson = function (personName) {
   searchQuery = personName;
   const searchInput = document.getElementById("movie-search");
   if (searchInput) searchInput.value = searchQuery;
@@ -422,7 +493,7 @@ function showGridSkeletons() {
   const loadMoreBtn = document.getElementById("btn-load-more");
   const emptyState = document.getElementById("movies-empty");
   if (!grid) return;
-  
+
   if (emptyState) emptyState.style.display = "none";
   if (loadMoreBtn) loadMoreBtn.style.display = "none";
 

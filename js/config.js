@@ -1,15 +1,16 @@
 /* CinePlay - Central API & Firestore Configuration */
 
 const CINEPLAY_CONFIG = {
-  // TMDB API Configuration
+  // TMDB API Configuration (Proxied securely through backend to protect credentials)
   TMDB: {
+    PROXY_ENDPOINT: "/api/tmdb",
     BASE_URL: "https://api.themoviedb.org/3",
     IMAGE_BASE: "https://image.tmdb.org/t/p",
     POSTER_SIZE: "w500",
     BACKDROP_SIZE: "w1280",
     PROFILE_SIZE: "h630",
     DEFAULT_REGION: "IN",
-    BEARER_TOKEN: window.CINEPLAY_TMDB_TOKEN || "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI3YWY3NmI0ZTQxZDY3ZDM1YmFkZDBiNGNiMDAyODcwOSIsIm5iZiI6MTc4NzgyMDkzMC4yNDcsInN1YiI6IjZhOGZmYjgyNjUwYzIyNTUwMDMxMDZmZiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.4w2-uYd37keBO1PmAPh7feM-vP6tsTF9glY1N-vkr2s"
+    BEARER_TOKEN: null
   },
 
   // Steam API Configuration
