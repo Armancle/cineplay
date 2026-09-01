@@ -660,7 +660,7 @@ header:not(.sticky) .nav-auth-btn {
 .search-container {
   margin-top: -40px;
   position: relative;
-  z-index: 100;
+  z-index: 10;
 }
 
 .search-box {
@@ -672,13 +672,13 @@ header:not(.sticky) .nav-auth-btn {
   max-width: 800px;
   margin: 0 auto;
   position: relative;
-  z-index: 2000;
+  z-index: 2;
 }
 
 .search-input-wrapper {
   position: relative;
   flex: 1;
-  z-index: 2000;
+  z-index: 2;
 }
 
 .search-input-wrapper i {

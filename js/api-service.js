@@ -59,11 +59,8 @@ const CinePlayAPIService = {
   // Discover TMDB Movies by Filters
   // Discover TMDB Movies by Filters
   async discoverTMDBMovies(filters = {}) {
-    const params = { page: filters.page || 1 };
-    if (filters.with_genres) params.with_genres = filters.with_genres;
+    const params = { ...filters, page: filters.page || 1 };
     if (filters.year) params.primary_release_year = filters.year;
-    if (filters["vote_average.gte"]) params["vote_average.gte"] = filters["vote_average.gte"];
-    if (filters["vote_count.gte"]) params["vote_count.gte"] = filters["vote_count.gte"];
 
     if (filters.sort_by) {
       params.sort_by = filters.sort_by;
@@ -240,7 +237,7 @@ const CinePlayAPIService = {
 
     const poster = tmdbData.poster_path
       ? `${config.IMAGE_BASE}/${config.POSTER_SIZE}${tmdbData.poster_path}`
-      : "images/posters/m1.jpg";
+      : "";
 
     const backdrop = tmdbData.backdrop_path
       ? `${config.IMAGE_BASE}/${config.BACKDROP_SIZE}${tmdbData.backdrop_path}`
@@ -311,6 +308,8 @@ const CinePlayAPIService = {
       }
     }
 
+    const moods = this.determineMoodTags(genres, tmdbData.overview, tmdbData.title || tmdbData.original_title);
+
     return {
       id: `tmdb_${tmdbId}`,
       tmdbId: tmdbId,
@@ -325,6 +324,7 @@ const CinePlayAPIService = {
       duration: runtime,
       genre: genres,
       genres: genres,
+      mood: moods,
       cast: cast,
       directors: directors,
       rating: tmdbRating,
@@ -337,6 +337,58 @@ const CinePlayAPIService = {
       providers: providers,
       updatedAt: new Date().toISOString()
     };
+  },
+
+  determineMoodTags(genres = [], overview = "", title = "") {
+    const text = `${(genres || []).join(" ")} ${overview || ""} ${title || ""}`.toLowerCase();
+    const moods = new Set();
+
+    if (genres.some(g => ["Action", "Adventure"].includes(g)) || text.includes("thrill") || text.includes("battle") || text.includes("fight") || text.includes("superhero") || text.includes("mission") || text.includes("war")) {
+      moods.add("Action-packed");
+    }
+
+    if (genres.some(g => ["Sci-Fi", "Mystery"].includes(g)) || text.includes("mind") || text.includes("puzzle") || text.includes("conspiracy") || text.includes("quantum") || text.includes("time") || text.includes("universe") || text.includes("future")) {
+      moods.add("Thought-provoking");
+      moods.add("Mind-Bending");
+    }
+
+    if (genres.some(g => ["Horror", "Thriller"].includes(g)) || text.includes("fear") || text.includes("killer") || text.includes("ghost") || text.includes("dark") || text.includes("creepy") || text.includes("monster") || text.includes("stalk")) {
+      moods.add("Scary");
+      moods.add("Suspenseful");
+    }
+
+    if (genres.some(g => ["Drama", "Romance", "History"].includes(g)) || text.includes("love") || text.includes("tragedy") || text.includes("heart") || text.includes("relationship") || text.includes("grief") || text.includes("struggle") || text.includes("emotional")) {
+      moods.add("Emotional");
+    }
+
+    if (genres.some(g => ["Comedy", "Animation", "Family", "Music"].includes(g)) || text.includes("funny") || text.includes("humor") || text.includes("joy") || text.includes("laugh") || text.includes("friendship") || text.includes("cozy") || text.includes("magical")) {
+      moods.add("Relaxing");
+      moods.add("Fun & Lighthearted");
+    }
+
+    if (moods.size === 0) {
+      if (genres.includes("Action") || genres.includes("Thriller")) {
+        moods.add("Action-packed");
+        moods.add("Suspenseful");
+      } else if (genres.includes("Drama")) {
+        moods.add("Emotional");
+        moods.add("Thought-provoking");
+      } else if (genres.includes("Comedy")) {
+        moods.add("Relaxing");
+        moods.add("Fun & Lighthearted");
+      } else if (genres.includes("Sci-Fi")) {
+        moods.add("Thought-provoking");
+        moods.add("Action-packed");
+      } else if (genres.includes("Horror")) {
+        moods.add("Scary");
+        moods.add("Suspenseful");
+      } else {
+        moods.add("Thought-provoking");
+        moods.add("Emotional");
+      }
+    }
+
+    return Array.from(moods).slice(0, 3);
   },
 
   normalizeGame(steamAppDetails, reviewsData = null) {
@@ -369,6 +421,7 @@ const CinePlayAPIService = {
     const reviewScoreDesc = reviewsData ? reviewsData.reviewScoreDesc : "Very Positive";
     const percentPositive = reviewsData ? reviewsData.percentPositive : 90;
     const rating = parseFloat((percentPositive / 10).toFixed(1));
+    const moods = this.determineMoodTags(genres, steamAppDetails.short_description || steamAppDetails.about_the_game, steamAppDetails.name);
 
     return {
       id: `steam_${appId}`,
@@ -390,6 +443,7 @@ const CinePlayAPIService = {
       percentPositive: percentPositive,
       genre: genres,
       genres: genres,
+      mood: moods,
       tags: genres.concat(platforms),
       platform: platforms,
       platforms: platforms,

@@ -20,7 +20,7 @@ function initAuthUI() {
           <i class="fa-brands fa-google"></i> <span>Login</span>
         </button>
         <div id="nav-user-badge" class="user-profile" style="display: none;">
-          <img id="nav-user-avatar" class="user-avatar" src="" alt="User Avatar">
+          <img id="nav-user-avatar" class="user-avatar" src="" alt="User Avatar" referrerpolicy="no-referrer" loading="lazy">
           <span id="nav-user-name" class="user-name"></span>
           <button id="nav-logout-btn" class="logout-btn" title="Logout" aria-label="Logout">
             <i class="fa-solid fa-right-from-bracket"></i>
@@ -32,9 +32,17 @@ function initAuthUI() {
     // Add click listeners
     const loginBtn = container.querySelector("#nav-login-btn");
     const logoutBtn = container.querySelector("#nav-logout-btn");
+    const avatarImg = container.querySelector("#nav-user-avatar");
 
     if (loginBtn) loginBtn.addEventListener("click", login);
     if (logoutBtn) logoutBtn.addEventListener("click", logout);
+    if (avatarImg) {
+      avatarImg.addEventListener("error", function() {
+        const userName = container.querySelector("#nav-user-name")?.textContent || "User";
+        this.onerror = null;
+        this.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=e50914&color=ffffff&bold=true&rounded=true`;
+      });
+    }
   });
 }
 
@@ -53,8 +61,9 @@ function setupAuthListeners() {
       .then(async (result) => {
         if (result && result.user) {
           currentUser = result.user;
-          updateUIForLoggedInUser(result.user.displayName, result.user.photoURL || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=150&auto=format&fit=crop");
-          await syncFavoritesOnLogin(result.user.uid);
+          const photo = result.user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(result.user.displayName || "User")}&background=e50914&color=ffffff&bold=true&rounded=true`;
+          updateUIForLoggedInUser(result.user.displayName, photo);
+          await syncUserDataOnLogin(result.user.uid);
           window.CinePlay.showToast(`Welcome back, ${result.user.displayName}!`, "fa-solid fa-circle-user");
         }
       })
@@ -68,8 +77,9 @@ function setupAuthListeners() {
     window.firebaseAuth.onAuthStateChanged(async (user) => {
       if (user) {
         currentUser = user;
-        updateUIForLoggedInUser(user.displayName, user.photoURL || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=150&auto=format&fit=crop");
-        await syncFavoritesOnLogin(user.uid);
+        const photo = user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || "User")}&background=e50914&color=ffffff&bold=true&rounded=true`;
+        updateUIForLoggedInUser(user.displayName, photo);
+        await syncUserDataOnLogin(user.uid);
       } else {
         currentUser = null;
         updateUIForLoggedOutUser();
@@ -83,7 +93,7 @@ function setupAuthListeners() {
         const user = JSON.parse(savedMockUser);
         currentUser = user;
         updateUIForLoggedInUser(user.displayName, user.photoURL);
-        syncFavoritesOnLogin(user.uid);
+        syncUserDataOnLogin(user.uid);
       } catch (e) {
         console.error("Error parsing mock user", e);
       }
@@ -101,10 +111,20 @@ function updateUIForLoggedInUser(name, photoURL) {
   const avatars = document.querySelectorAll("#nav-user-avatar");
   const names = document.querySelectorAll("#nav-user-name");
 
+  const displayName = name ? name.split(" ")[0] : "User";
+  const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=e50914&color=ffffff&bold=true&rounded=true`;
+
   loginBtns.forEach(btn => btn.style.display = "none");
   userBadges.forEach(badge => badge.style.display = "flex");
-  avatars.forEach(avatar => avatar.src = photoURL);
-  names.forEach(n => n.textContent = name ? name.split(" ")[0] : "User");
+  avatars.forEach(avatar => {
+    avatar.setAttribute("referrerpolicy", "no-referrer");
+    avatar.onerror = function() {
+      this.onerror = null;
+      this.src = defaultAvatar;
+    };
+    avatar.src = photoURL || defaultAvatar;
+  });
+  names.forEach(n => n.textContent = displayName);
 }
 
 // Update UI to logged-out state
@@ -156,70 +176,95 @@ function login() {
 
 // Trigger Sign Out
 function logout() {
-  if (confirm("Are you sure you want to log out? Your favorites will remain saved in the cloud.")) {
+  if (confirm("Are you sure you want to log out? Your favorites and preferences will remain saved in the cloud.")) {
     if (window.useFirebase) {
       window.firebaseAuth.signOut().then(() => {
-        // Clear local storage favorites on logout so they don't leak
+        // Clear local storage favorites and dislikes on logout
         localStorage.removeItem("cineplay_favorites");
+        localStorage.removeItem("cineplay_dislikes");
         window.dispatchEvent(new Event("favoritesChanged"));
+        window.dispatchEvent(new Event("dislikesChanged"));
         window.CinePlay.showToast("Logged out successfully", "fa-solid fa-right-from-bracket");
       });
     } else {
       localStorage.removeItem("cineplay_mock_user");
       localStorage.removeItem("cineplay_favorites");
+      localStorage.removeItem("cineplay_dislikes");
       currentUser = null;
       updateUIForLoggedOutUser();
       window.dispatchEvent(new Event("favoritesChanged"));
+      window.dispatchEvent(new Event("dislikesChanged"));
       window.CinePlay.showToast("Logged out (Mock Mode)", "fa-solid fa-right-from-bracket");
     }
   }
 }
 
-// Sync local wishlist with cloud/mock database upon login
-async function syncFavoritesOnLogin(uid) {
+// Sync local wishlist and dislikes with cloud/mock database upon login
+async function syncUserDataOnLogin(uid) {
   let localFavs = JSON.parse(localStorage.getItem("cineplay_favorites")) || [];
+  let localDislikes = JSON.parse(localStorage.getItem("cineplay_dislikes")) || [];
   let cloudFavs = [];
+  let cloudDislikes = [];
 
   if (window.useFirebase) {
     try {
       const docRef = window.firebaseDb.collection("users").doc(uid);
       const doc = await docRef.get();
       if (doc.exists) {
-        cloudFavs = doc.data().favorites || [];
+        const data = doc.data();
+        cloudFavs = data.favorites || [];
+        cloudDislikes = data.dislikes || [];
       }
     } catch (e) {
-      console.error("Error reading favorites from Firestore", e);
+      console.error("Error reading user data from Firestore", e);
     }
   } else {
-    // Read from Mock user favorites in local storage
+    // Read from Mock user data in local storage
     const mockDbFavs = localStorage.getItem(`cineplay_favorites_mock_${uid}`);
-    if (mockDbFavs) {
-      cloudFavs = JSON.parse(mockDbFavs);
-    }
+    if (mockDbFavs) cloudFavs = JSON.parse(mockDbFavs);
+    const mockDbDislikes = localStorage.getItem(`cineplay_dislikes_mock_${uid}`);
+    if (mockDbDislikes) cloudDislikes = JSON.parse(mockDbDislikes);
   }
 
-  // Merge items (preserving uniqueness by id)
+  // Merge favorites (preserving uniqueness by id)
   let mergedFavs = [...cloudFavs];
   localFavs.forEach(localItem => {
-    if (!mergedFavs.some(cloudItem => cloudItem.id === localItem.id)) {
+    const localId = String(typeof localItem === "object" ? localItem.id : localItem);
+    if (!mergedFavs.some(cloudItem => String(typeof cloudItem === "object" ? cloudItem.id : cloudItem) === localId)) {
       mergedFavs.push(localItem);
+    }
+  });
+
+  // Merge dislikes (preserving uniqueness by id)
+  let mergedDislikes = [...cloudDislikes];
+  localDislikes.forEach(localItem => {
+    const localId = String(typeof localItem === "object" ? localItem.id : localItem);
+    if (!mergedDislikes.some(cloudItem => String(typeof cloudItem === "object" ? cloudItem.id : cloudItem) === localId)) {
+      mergedDislikes.push(localItem);
     }
   });
 
   // Save the merged data back to the database
   if (window.useFirebase) {
     try {
-      await window.firebaseDb.collection("users").doc(uid).set({ favorites: mergedFavs }, { merge: true });
+      await window.firebaseDb.collection("users").doc(uid).set({
+        favorites: mergedFavs,
+        dislikes: mergedDislikes,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
     } catch (e) {
-      console.error("Error writing favorites to Firestore on sync", e);
+      console.error("Error writing user data to Firestore on sync", e);
     }
   } else {
     localStorage.setItem(`cineplay_favorites_mock_${uid}`, JSON.stringify(mergedFavs));
+    localStorage.setItem(`cineplay_dislikes_mock_${uid}`, JSON.stringify(mergedDislikes));
   }
 
   // Save back to local storage and notify app layers
   localStorage.setItem("cineplay_favorites", JSON.stringify(mergedFavs));
+  localStorage.setItem("cineplay_dislikes", JSON.stringify(mergedDislikes));
   window.dispatchEvent(new Event("favoritesChanged"));
+  window.dispatchEvent(new Event("dislikesChanged"));
 }
 
 // Save active wishlist to the database (triggered by actions)
@@ -228,12 +273,33 @@ async function syncFavoritesToCloud(favorites) {
 
   if (window.useFirebase) {
     try {
-      await window.firebaseDb.collection("users").doc(currentUser.uid).set({ favorites }, { merge: true });
+      await window.firebaseDb.collection("users").doc(currentUser.uid).set({
+        favorites,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
     } catch (e) {
       console.error("Error syncing favorites to Firestore", e);
     }
   } else {
     localStorage.setItem(`cineplay_favorites_mock_${currentUser.uid}`, JSON.stringify(favorites));
+  }
+}
+
+// Save active dislikes to the database (triggered by actions)
+async function syncDislikesToCloud(dislikes) {
+  if (!currentUser) return;
+
+  if (window.useFirebase) {
+    try {
+      await window.firebaseDb.collection("users").doc(currentUser.uid).set({
+        dislikes,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+    } catch (e) {
+      console.error("Error syncing dislikes to Firestore", e);
+    }
+  } else {
+    localStorage.setItem(`cineplay_dislikes_mock_${currentUser.uid}`, JSON.stringify(dislikes));
   }
 }
 
@@ -279,8 +345,8 @@ function showMockAuthPopup() {
       
       modal.classList.remove("active");
       
-      // Load favorites and sync
-      syncFavoritesOnLogin(mockUserObj.uid);
+      // Load user data and sync
+      syncUserDataOnLogin(mockUserObj.uid);
       window.CinePlay.showToast("Welcome! Signed in as Popcorn Lover (Mock)", "fa-solid fa-circle-user");
     });
   }
@@ -292,5 +358,6 @@ function showMockAuthPopup() {
 window.CinePlayAuth = {
   getCurrentUser: () => currentUser,
   isLoggedIn: () => currentUser !== null,
-  syncFavoritesToCloud
+  syncFavoritesToCloud,
+  syncDislikesToCloud
 };

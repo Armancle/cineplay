@@ -77,28 +77,16 @@ const CinePlayAPI = {
 
   // Recommendations calculation engine
   async fetchRecommendations(criteria) {
-    await simulateNetworkDelay(400);
-
-    let movies = window.moviesData;
-    let games = window.gamesData;
-
-    // Pull the freshest dataset from the live API layer if it exists,
-    // instead of always scoring against the static local fallback.
-    if (window.CinePlayDataManager) {
+    if (window.CinePlayDataManager && window.CinePlayDataManager.fetchRecommendations) {
       try {
-        if (criteria.contentType === "game") {
-          const res = await window.CinePlayDataManager.fetchGames({ limit: 500 });
-          if (res && res.results && res.results.length) games = res.results;
-        } else {
-          const res = await window.CinePlayDataManager.fetchMovies({ limit: 500 });
-          if (res && res.results && res.results.length) movies = res.results;
-        }
+        const results = await window.CinePlayDataManager.fetchRecommendations(criteria);
+        if (results && results.length > 0) return results;
       } catch (err) {
-        console.warn("CinePlayDataManager fetch failed, using local dataset:", err);
+        console.warn("[CinePlayAPI] fetchRecommendations error:", err);
       }
     }
 
-    return CinePlay.getRecommendations(criteria, { movies, games });
+    return CinePlay.getRecommendations(criteria, { movies: window.moviesData, games: window.gamesData });
   }
 };
 
@@ -158,9 +146,19 @@ function getRecommendations({ contentType = "movie", mood = "Action-packed", gen
 
   if (!dataset || dataset.length === 0) return [];
 
+  // Filter out disliked items
+  const dislikedIds = new Set(
+    typeof getDislikedIds === "function"
+      ? getDislikedIds()
+      : (window.CinePlay && window.CinePlay.getDislikedIds ? window.CinePlay.getDislikedIds() : [])
+  );
+
+  const filteredDataset = dataset.filter(item => !dislikedIds.has(String(item.id)));
+  if (filteredDataset.length === 0) return [];
+
   const moodTags = MOOD_QUIZ_TO_TAGS[mood] || [mood];
 
-  const matchedList = dataset.map(item => {
+  const matchedList = filteredDataset.map(item => {
     let score = 0;
 
     // 1. Mood match (Weight: 40 points)
@@ -168,18 +166,25 @@ function getRecommendations({ contentType = "movie", mood = "Action-packed", gen
       score += 40;
     } else if (item.mood && item.mood.some(m => moodTags.some(t => m.toLowerCase().includes(t.toLowerCase())))) {
       score += 25;
+    } else if (!item.mood || item.mood.length === 0) {
+      // TMDB movies have no mood field — give them a partial score so they're not excluded
+      score += 20;
     }
 
     // 2. Genre match (Weight: 30 points)
-    if (genre === "All" || (item.genre && item.genre.includes(genre))) {
+    const itemGenres = item.genre || item.genres || [];
+    if (genre === "All" || itemGenres.includes(genre)) {
       score += 30;
+    } else if (genre !== "All" && itemGenres.some(g => g.toLowerCase().includes(genre.toLowerCase()))) {
+      score += 15; // partial genre match
     }
 
     // 3. Era match (Weight: 20 points)
     let yearMatch = false;
-    if (era === "classic" && item.year < 2010) yearMatch = true;
-    else if (era === "golden" && item.year >= 2010 && item.year <= 2019) yearMatch = true;
-    else if (era === "modern" && item.year >= 2020) yearMatch = true;
+    const itemYear = parseInt(item.year) || 0;
+    if (era === "classic" && itemYear < 2010) yearMatch = true;
+    else if (era === "golden" && itemYear >= 2010 && itemYear <= 2019) yearMatch = true;
+    else if (era === "modern" && itemYear >= 2020) yearMatch = true;
     else if (era === "any") yearMatch = true;
 
     if (yearMatch) {
@@ -207,10 +212,10 @@ function getRecommendations({ contentType = "movie", mood = "Action-packed", gen
     };
   });
 
-  // Sort and filter results
+  // Sort and filter results — lowered threshold from 40 to 30 to include TMDB movies without mood tags
   return matchedList
-    .filter(match => match.score >= 40)
-    .sort((a, b) => b.score - a.score || b.item.rating - a.item.rating);
+    .filter(match => match.score >= 30)
+    .sort((a, b) => b.score - a.score || (b.item.rating || 0) - (a.item.rating || 0));
 }
 
 /* ==========================================================================
@@ -273,14 +278,15 @@ function createMovieCardHTML(movie) {
   const isFav = isFavorite(movie.id);
 
   // Handle both API and local data formats
-  const posterUrl = movie.poster || movie.poster_path || 'images/posters/m1.jpg';
+  const posterUrl = movie.poster || movie.poster_path || '';
   const title = movie.title || movie.name || 'Untitled';
+  const cleanTitle = title.replace(/"/g, '&quot;');
   const rating = movie.rating || movie.vote_average || 0;
   const year = movie.year || (movie.release_date ? new Date(movie.release_date).getFullYear() : '—');
   const runtime = movie.runtime ? (typeof movie.runtime === 'number' ? `${movie.runtime}m` : movie.runtime) : (movie.duration || '—');
   const genres = movie.genres || movie.genre || [];
   const overview = movie.overview || movie.description || 'No overview available.';
-  const trailerKey = movie.trailerKey || movie.trailer || "";
+  const cleanOverview = overview.replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
   let streamingBadges = "";
   if (movie.providers && movie.providers.IN && movie.providers.IN.flatrate) {
@@ -289,12 +295,10 @@ function createMovieCardHTML(movie) {
     streamingBadges = movie.streaming.slice(0, 2).map(s => `<span class="streaming-badge">${s}</span>`).join("");
   }
 
-  const safeTitle = title.replace(/'/g, "\\'");
-
   return `
     <article class="media-card" data-id="${movie.id}" data-type="movie">
       <div class="card-img-wrapper shimmer-wrapper">
-        <img src="${posterUrl}" alt="${title}" class="card-img" loading="lazy" onerror="this.src='images/posters/m1.jpg'"> 
+        <img src="${posterUrl || 'data:image/svg+xml;charset=utf-8,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 300 450\' fill=\'%2314141d\'%3E%3C/svg%3E'}" alt="${cleanTitle}" data-title="${cleanTitle}" class="card-img" loading="lazy" onerror="CinePlay.movieImgFallback(this, this.dataset.title || 'Movie')"> 
         <div class="card-rating-badge"><i class="fa-solid fa-star"></i> ${typeof rating === 'number' ? rating.toFixed(1) : rating}</div>
         <button class="card-favorite-btn ${isFav ? 'active' : ''}" aria-label="Favorite button" onclick="event.stopPropagation(); CinePlay.handleFavoriteAction(this, '${movie.id}', 'movie')">
           <i class="${isFav ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
@@ -310,11 +314,11 @@ function createMovieCardHTML(movie) {
         <div class="card-genres">
           ${genres.slice(0, 3).map(g => `<span class="card-genre-tag">${g}</span>`).join("")}
         </div>
-        <p class="card-desc">${overview}</p>
+        <p class="card-desc">${cleanOverview}</p>
         <div style="display: flex; gap: 8px; margin-top: 10px;">
           <button class="card-btn" style="flex: 1;">Details</button>
-          <button class="card-btn btn-outline" style="padding: 0 12px; border-radius: 8px;" title="Watch Trailer" onclick="event.stopPropagation(); CinePlay.openMovieTrailer('${movie.id}', '${safeTitle}')"><i class="fa-solid fa-play"></i></button>
-          </div>
+          <button class="card-btn btn-outline" style="padding: 0 12px; border-radius: 8px;" title="Watch Trailer" onclick="event.stopPropagation(); CinePlay.openMovieTrailer('${movie.id}')"><i class="fa-solid fa-play"></i></button>
+        </div>
         ${streamingBadges ? `<div class="streaming-list">${streamingBadges}</div>` : ''}
       </div>
     </article>
@@ -453,9 +457,13 @@ function saveFavorites(favorites) {
   }
 }
 
-function toggleFavorite(itemId, itemType) {
+function toggleFavorite(itemId, itemType, itemData = null) {
   let favorites = getFavorites();
-  const index = favorites.findIndex(item => item.id === itemId);
+  const idStr = String(itemId);
+  const index = favorites.findIndex(item => {
+    const favId = typeof item === "object" ? String(item.id || item.tmdbId || item.steamAppId || "") : String(item);
+    return favId === idStr || `tmdb_${favId}` === idStr || `steam_${favId}` === idStr || favId === idStr.replace(/^tmdb_|^steam_/, "");
+  });
 
   if (index !== -1) {
     favorites.splice(index, 1);
@@ -463,8 +471,54 @@ function toggleFavorite(itemId, itemType) {
     showToast("Removed from Watchlist", "fa-regular fa-heart");
     return false;
   } else {
-    favorites.push({ id: itemId, type: itemType });
+    let item = itemData || (window._cineItemRegistry ? window._cineItemRegistry[idStr] : null);
+    if (!item && window._cineItemRegistry) {
+      const cleanId = idStr.replace(/^tmdb_|^steam_/, "");
+      item = window._cineItemRegistry[cleanId] || window._cineItemRegistry[`tmdb_${cleanId}`] || window._cineItemRegistry[`steam_${cleanId}`];
+    }
+    if (!item) {
+      const dataSet = itemType === "movie" ? window.moviesData : window.gamesData;
+      item = dataSet ? dataSet.find(i => String(i.id) === idStr) : null;
+    }
+
+    const type = itemType || (item && (item.type || (item.platform ? "game" : "movie"))) || (idStr.startsWith("steam_") ? "game" : "movie");
+    const favEntry = {
+      ...(item || {}),
+      id: idStr,
+      type: type,
+      title: (item && (item.title || item.name)) || "Untitled",
+      name: (item && (item.name || item.title)) || "Untitled",
+      poster: (item && (item.poster || item.cover || item.headerImage || item.poster_path)) || "",
+      cover: (item && (item.cover || item.poster || item.headerImage)) || "",
+      headerImage: (item && (item.headerImage || item.poster || item.cover)) || "",
+      backdrop: (item && item.backdrop) || "",
+      rating: (item && (item.rating || item.tmdbRating || item.vote_average)) || 0,
+      tmdbRating: (item && (item.tmdbRating || item.rating || item.vote_average)) || 0,
+      year: (item && (item.year || (item.release_date ? new Date(item.release_date).getFullYear() : ""))) || "",
+      genres: (item && (item.genres || item.genre)) || [],
+      genre: (item && (item.genre || item.genres)) || [],
+      overview: (item && (item.overview || item.description)) || "",
+      description: (item && (item.description || item.overview)) || "",
+      runtime: (item && (item.runtime || item.duration)) || "",
+      duration: (item && (item.duration || item.runtime)) || "",
+      trailer: (item && (item.trailer || item.trailerKey)) || null,
+      trailerKey: (item && (item.trailerKey || item.trailer)) || null,
+      providers: (item && item.providers) || {},
+      platform: (item && (item.platform || item.platforms)) || [],
+      platforms: (item && (item.platforms || item.platform)) || [],
+      tmdbId: (item && item.tmdbId) || (idStr.startsWith("tmdb_") ? idStr.replace("tmdb_", "") : null),
+      steamAppId: (item && item.steamAppId) || (idStr.startsWith("steam_") ? idStr.replace("steam_", "") : null),
+      savedAt: new Date().toISOString()
+    };
+
+    favorites.push(favEntry);
     saveFavorites(favorites);
+
+    // If item was previously disliked, remove it from disliked list
+    if (getDislikedIds().includes(idStr)) {
+      removeDisliked(idStr);
+    }
+
     showToast("Saved to your Watchlist! ❤️", "fa-solid fa-heart");
     return true;
   }
@@ -472,7 +526,11 @@ function toggleFavorite(itemId, itemType) {
 
 function isFavorite(itemId) {
   const favorites = getFavorites();
-  return favorites.some(item => item.id === itemId);
+  const idStr = String(itemId);
+  return favorites.some(item => {
+    const favId = typeof item === "object" ? String(item.id || item.tmdbId || item.steamAppId || "") : String(item);
+    return favId === idStr || `tmdb_${favId}` === idStr || `steam_${favId}` === idStr || favId === idStr.replace(/^tmdb_|^steam_/, "");
+  });
 }
 
 /* ==========================================================================
@@ -510,11 +568,36 @@ function initModalElement() {
   });
 }
 
-function openDetailsModal(item, type) {
+function openDetailsModal(itemOrId, type = "movie") {
   initModalElement();
+
+  let item = typeof itemOrId === "object" ? itemOrId : null;
+  if (!item && typeof itemOrId === "string") {
+    item = window._cineItemRegistry ? window._cineItemRegistry[itemOrId] : null;
+    if (!item) {
+      const dataSet = type === "movie" ? window.moviesData : window.gamesData;
+      item = dataSet ? dataSet.find(i => String(i.id) === String(itemOrId)) : null;
+    }
+  }
+
+  if (!item) {
+    if (typeof itemOrId === "string" && itemOrId.startsWith("tmdb_") && window.CinePlayAPIService) {
+      const tmdbId = itemOrId.replace("tmdb_", "");
+      showToast("Loading details…", "fa-spinner");
+      CinePlayAPIService.getTMDBMovieDetails(tmdbId).then(data => {
+        if (data) {
+          const normalized = CinePlayAPIService.normalizeMovie(data);
+          if (window._cineItemRegistry) window._cineItemRegistry[itemOrId] = normalized;
+          openDetailsModal(normalized, "movie");
+        }
+      });
+    }
+    return;
+  }
+
   trackRecentlyViewed(item.id, type);
 
-  if (item.id) window._cineItemRegistry[item.id] = item;
+  if (item.id && window._cineItemRegistry) window._cineItemRegistry[item.id] = item;
 
   // Reset scroll positions
   const modalContent = document.querySelector('.modal-content');
@@ -561,9 +644,16 @@ function openDetailsModal(item, type) {
 
   const genres = item.genres || item.genre || [];
   const platforms = item.platform || item.platforms || [];
+  const moods = (Array.isArray(item.mood) && item.mood.length > 0)
+    ? item.mood
+    : (window.CinePlayAPIService && window.CinePlayAPIService.determineMoodTags 
+        ? window.CinePlayAPIService.determineMoodTags(genres, item.description || item.overview, item.title)
+        : ["Thought-provoking", "Action-packed"]);
+  const moodDisplay = Array.isArray(moods) ? moods.join(" • ") : String(moods);
+
   let metaHtml = `
     <li><strong>Genres:</strong> ${genres.length ? genres.join(", ") : '—'}</li>
-    <li><strong>Mood Vibe:</strong> ${item.mood ? item.mood.join(" • ") : "N/A"}</li>
+    <li><strong>Mood Vibe:</strong> <span style="color: var(--accent-red); font-weight: 600;"><i class="fa-solid fa-sparkles"></i> ${moodDisplay}</span></li>
   `;
 
   if (type === "movie") {
@@ -621,6 +711,8 @@ function openDetailsModal(item, type) {
 
   const trailerKey = item.trailerKey || item.trailer || "";
   const isFav = isFavorite(item.id);
+  const isDisliked = getDislikedIds().includes(String(item.id));
+
   actionsContainer.innerHTML = `
     <button class="btn btn-primary" id="modal-play-btn">
       <i class="fa-solid fa-play"></i> Watch Trailer
@@ -629,8 +721,8 @@ function openDetailsModal(item, type) {
       <i class="${isFav ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
       ${isFav ? 'Favorited' : 'Add to Watchlist'}
     </button>
-    <button class="btn btn-outline" id="modal-dislike-btn" title="Show fewer recommendations like this">
-      <i class="fa-solid fa-thumbs-down"></i> Not for me
+    <button class="btn btn-outline ${isDisliked ? 'active' : ''}" id="modal-dislike-btn" title="${isDisliked ? 'Remove from Disliked' : 'Show fewer recommendations like this'}" style="${isDisliked ? 'border-color: var(--accent-red); color: var(--accent-red);' : ''}">
+      <i class="fa-solid fa-thumbs-down"></i> ${isDisliked ? 'Disliked (Undo)' : 'Not for me'}
     </button>
   `;
 
@@ -646,7 +738,7 @@ function openDetailsModal(item, type) {
   const favBtn = document.getElementById("modal-fav-btn");
   if (favBtn) {
     favBtn.addEventListener("click", () => {
-      const isNowFav = toggleFavorite(item.id, type);
+      const isNowFav = toggleFavorite(item.id, type, item);
       favBtn.innerHTML = isNowFav
         ? '<i class="fa-solid fa-heart"></i> Favorited'
         : '<i class="fa-regular fa-heart"></i> Add to Watchlist';
@@ -655,7 +747,28 @@ function openDetailsModal(item, type) {
 
   const dislikeBtn = document.getElementById("modal-dislike-btn");
   if (dislikeBtn) {
-    dislikeBtn.addEventListener("click", () => { markAsDisliked(item.id, item.title); closeModal(); });
+    dislikeBtn.addEventListener("click", () => {
+      const currentlyDisliked = getDislikedIds().includes(String(item.id));
+      if (currentlyDisliked) {
+        removeDisliked(item.id);
+        dislikeBtn.classList.remove("active");
+        dislikeBtn.style.borderColor = "";
+        dislikeBtn.style.color = "";
+        dislikeBtn.innerHTML = '<i class="fa-solid fa-thumbs-down"></i> Not for me';
+        showToast(`Removed "${item.title}" from disliked list`, "fa-rotate-left");
+      } else {
+        markAsDisliked(item.id, item.title, item);
+        dislikeBtn.classList.add("active");
+        dislikeBtn.style.borderColor = "var(--accent-red)";
+        dislikeBtn.style.color = "var(--accent-red)";
+        dislikeBtn.innerHTML = '<i class="fa-solid fa-thumbs-down"></i> Disliked (Undo)';
+        // If it was favorited, also remove from favorites
+        if (isFavorite(item.id)) {
+          toggleFavorite(item.id, type, item);
+          if (favBtn) favBtn.innerHTML = '<i class="fa-regular fa-heart"></i> Add to Watchlist';
+        }
+      }
+    });
   }
 
   globalModal.classList.add("active");
@@ -795,10 +908,11 @@ function _buildProviderGrid(item) {
 async function openMovieTrailer(itemId, title) {
   // 1. Check if we have the item in registry with trailer
   let item = window._cineItemRegistry[itemId];
+  const movieTitle = title || (item ? item.title : "Trailer");
 
   // 2. Check if trailer exists
   if (item && (item.trailerKey || item.trailer)) {
-    openTrailerModal(item.trailerKey || item.trailer, title);
+    openTrailerModal(item.trailerKey || item.trailer, movieTitle);
     return;
   }
 
@@ -820,7 +934,7 @@ async function openMovieTrailer(itemId, title) {
           window._cineItemRegistry[itemId] = item;
 
           // Open trailer
-          openTrailerModal(trailer.key, title);
+          openTrailerModal(trailer.key, movieTitle);
           return;
         }
       }
@@ -1277,7 +1391,7 @@ function updateQuizUI() {
   }
 }
 
-function calculateQuizResults() {
+async function calculateQuizResults() {
   const resultPane = document.getElementById("quiz-result-pane");
   const tag = document.getElementById("quiz-step-tag");
   const title = document.getElementById("quiz-question-title");
@@ -1285,40 +1399,88 @@ function calculateQuizResults() {
 
   currentQuizStep = 5;
   tag.textContent = "Your Perfect Cinema Match";
-  title.textContent = "No More Scrolling!";
-  subtitle.textContent = `Based on your ${quizSelections.mood} vibe, ${quizSelections.timeOfDay.toLowerCase()} timing, and ${quizSelections.company.toLowerCase()} plan:`;
-
-  const matches = CinePlay.getRecommendations({
-    contentType: "movie",
-    mood: quizSelections.mood,
-    runtimeMax: quizSelections.duration
-  });
-
-  const topMatch = matches.length > 0 ? matches[0].item : window.moviesData[0];
-  const score = matches.length > 0 ? matches[0].score : 96;
+  title.textContent = "Finding Your Match...";
+  subtitle.textContent = `Analyzing ${quizSelections.mood} vibe for ${quizSelections.company.toLowerCase()} • ${quizSelections.timeOfDay.toLowerCase()}...`;
 
   resultPane.innerHTML = `
-    <div class="quiz-result-hero">
-      <img src="${topMatch.poster}" alt="${topMatch.title}" class="quiz-result-poster">
-      <div class="quiz-result-info">
-        <span class="match-score-chip"><i class="fa-solid fa-bolt"></i> ${score}% Match</span>
-        <span class="match-rationale-tag">Perfect for ${quizSelections.company} • ${quizSelections.timeOfDay}</span>
-        <h3 style="font-size: 20px; font-weight: 700; margin-bottom: 6px; color: var(--text-primary);">${topMatch.title}</h3>
-        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${topMatch.description}</p>
-        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-          ${topMatch.trailer ? `<button class="btn btn-primary" style="padding: 8px 16px; font-size: 12px;" onclick="CinePlay.openTrailerModal('${topMatch.trailer}', '${topMatch.title.replace(/'/g, "\\'")}')"><i class="fa-solid fa-play"></i> Watch Trailer</button>` : ''}
-          <button class="btn btn-outline" style="padding: 8px 16px; font-size: 12px;" onclick="CinePlay.openDetailsModal(window.moviesData.find(m => m.id === '${topMatch.id}'), 'movie')"><i class="fa-solid fa-circle-info"></i> Full Details</button>
-        </div>
-      </div>
-    </div>
-    <div style="text-align: center; margin-top: 15px;">
-      <a href="recommendations.html" class="btn btn-primary btn-large" style="width: 100%; border-radius: 30px; padding: 12px 20px; font-size: 14px;" onclick="closeMoodQuizModal()">
-        <i class="fa-solid fa-wand-magic-sparkles"></i> Explore All Matches on Recommendation Engine
-      </a>
+    <div style="text-align: center; padding: 45px 20px;">
+      <i class="fa-solid fa-wand-magic-sparkles fa-spin" style="font-size: 38px; color: var(--accent-red); margin-bottom: 16px;"></i>
+      <h3 style="font-size: 18px; font-weight: 700; margin-bottom: 8px;">Curating Live TMDB Matches...</h3>
+      <p style="color: var(--text-muted); font-size: 13px;">Handpicking fresh titles tailored to your exact mood.</p>
     </div>
   `;
 
   updateQuizUI();
+
+  try {
+    const matches = await CinePlayAPI.fetchRecommendations({
+      contentType: "movie",
+      mood: quizSelections.mood,
+      timeOfDay: quizSelections.timeOfDay,
+      company: quizSelections.company,
+      runtimeMax: quizSelections.duration
+    });
+
+    let topMatch = null;
+    let score = 96;
+
+    if (matches && matches.length > 0) {
+      // Pick randomly among top matches for high diversity on every quiz run
+      const topPool = matches.slice(0, Math.min(4, matches.length));
+      const chosen = topPool[Math.floor(Math.random() * topPool.length)];
+      topMatch = chosen.item;
+      score = chosen.score;
+    } else if (window.moviesData && window.moviesData.length > 0) {
+      topMatch = window.moviesData[Math.floor(Math.random() * window.moviesData.length)];
+    }
+
+    if (!topMatch) {
+      resultPane.innerHTML = `<div style="text-align:center; padding:30px;"><p>No matches found. Please try different options.</p></div>`;
+      return;
+    }
+
+    if (window._cineItemRegistry) {
+      window._cineItemRegistry[topMatch.id] = topMatch;
+    }
+
+    title.textContent = "No More Scrolling!";
+    subtitle.textContent = `Based on your ${quizSelections.mood} vibe, ${quizSelections.timeOfDay.toLowerCase()} timing, and ${quizSelections.company.toLowerCase()} plan:`;
+
+    const moodsStr = Array.isArray(topMatch.mood) && topMatch.mood.length > 0
+      ? topMatch.mood.join(" • ")
+      : (window.CinePlayAPIService && window.CinePlayAPIService.determineMoodTags 
+          ? window.CinePlayAPIService.determineMoodTags(topMatch.genres || topMatch.genre, topMatch.overview || topMatch.description, topMatch.title).join(" • ") 
+          : quizSelections.mood);
+
+    const posterUrl = topMatch.poster || topMatch.backdrop || "images/posters/m1.jpg";
+    const desc = topMatch.overview || topMatch.description || "No overview available.";
+    const safeTitle = (topMatch.title || "Movie").replace(/'/g, "\\'");
+
+    resultPane.innerHTML = `
+      <div class="quiz-result-hero">
+        <img src="${posterUrl}" alt="${safeTitle}" class="quiz-result-poster" onerror="CinePlay.movieImgFallback(this, '${safeTitle}')">
+        <div class="quiz-result-info">
+          <span class="match-score-chip"><i class="fa-solid fa-bolt"></i> ${score}% Match</span>
+          <span class="match-rationale-tag"><i class="fa-solid fa-sparkles"></i> ${moodsStr}</span>
+          <h3 style="font-size: 20px; font-weight: 700; margin-bottom: 6px; color: var(--text-primary);">${topMatch.title}</h3>
+          <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${desc}</p>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            ${topMatch.trailer ? `<button class="btn btn-primary" style="padding: 8px 16px; font-size: 12px;" onclick="CinePlay.openTrailerModal('${topMatch.trailer}', '${safeTitle}')"><i class="fa-solid fa-play"></i> Watch Trailer</button>` : ''}
+            <button class="btn btn-outline" style="padding: 8px 16px; font-size: 12px;" onclick="CinePlay.openDetailsModal(window._cineItemRegistry['${topMatch.id}'] || '${topMatch.id}', 'movie')"><i class="fa-solid fa-circle-info"></i> Full Details</button>
+            <button class="btn btn-outline" style="padding: 8px 14px; font-size: 12px; border-color: var(--accent-red); color: var(--accent-red);" title="Get another match with same settings" onclick="calculateQuizResults()"><i class="fa-solid fa-rotate"></i> Roll Another</button>
+          </div>
+        </div>
+      </div>
+      <div style="text-align: center; margin-top: 15px;">
+        <a href="recommendations.html" class="btn btn-primary btn-large" style="width: 100%; border-radius: 30px; padding: 12px 20px; font-size: 14px;" onclick="closeMoodQuizModal()">
+          <i class="fa-solid fa-wand-magic-sparkles"></i> Explore All Matches on Recommendation Engine
+        </a>
+      </div>
+    `;
+  } catch (err) {
+    console.error("[Quiz] Error calculating live results:", err);
+    resultPane.innerHTML = `<div style="text-align:center; padding:30px;"><p>Failed to generate recommendations. Please try again.</p><button class="btn btn-primary" onclick="calculateQuizResults()">Retry</button></div>`;
+  }
 }
 
 /* ==========================================================================
@@ -1365,21 +1527,28 @@ function initLiveSearchAutoSuggestions() {
 
       searchTimer = setTimeout(async () => {
         let matches = [];
+        const seenIds = new Set();
 
-        // 1. Check local dataset
+        // 1. Check local dataset first
         const localMovies = (window.moviesData || []).filter(m => m.title.toLowerCase().includes(q)).map(m => ({ ...m, type: "movie" }));
         const localGames = (window.gamesData || []).filter(g => g.title.toLowerCase().includes(q)).map(g => ({ ...g, type: "game" }));
-        matches = [...localMovies, ...localGames];
+        [...localMovies, ...localGames].forEach(item => {
+          if (item.id && !seenIds.has(String(item.id))) {
+            seenIds.add(String(item.id));
+            matches.push(item);
+          }
+        });
 
-        // 2. Fetch live TMDB results if API service is available
+        // 2. Fetch live TMDB results — dedupe by id to avoid showing the same movie twice
         if (window.CinePlayAPIService) {
           try {
             const tmdbRes = await window.CinePlayAPIService.searchTMDBMovies(q);
             if (tmdbRes && tmdbRes.results && tmdbRes.results.length > 0) {
-              const tmdbMatches = tmdbRes.results.slice(0, 4).map(m => window.CinePlayAPIService.normalizeMovie(m));
+              const tmdbMatches = tmdbRes.results.slice(0, 6).map(m => window.CinePlayAPIService.normalizeMovie(m)).filter(Boolean);
               tmdbMatches.forEach(tm => {
-                if (!matches.some(item => item.title.toLowerCase() === tm.title.toLowerCase())) {
-                  matches.push(tm);
+                if (tm && tm.id && !seenIds.has(String(tm.id))) {
+                  seenIds.add(String(tm.id));
+                  matches.push({ ...tm, type: "movie" });
                 }
               });
             }
@@ -1399,9 +1568,13 @@ function initLiveSearchAutoSuggestions() {
           const rating = item.rating || item.tmdbRating || 8.0;
           const year = item.year || 2024;
           const type = item.type || "movie";
+          const itemId = String(item.id);
+
+          // Register in registry so openFeaturedItem can find it
+          window._cineItemRegistry[itemId] = item;
 
           return `
-            <div class="suggestion-item" onclick="CinePlay.openDetailsModal(${JSON.stringify(item).replace(/"/g, '&quot;')}, '${type}'); this.parentElement.classList.remove('active'); document.querySelectorAll('.search-input').forEach(i => i.blur());">
+            <div class="suggestion-item" onclick="CinePlay.openFeaturedItem('${itemId}', '${type}'); this.closest('.search-suggestions-dropdown').classList.remove('active'); document.querySelectorAll('.search-input').forEach(i => i.blur());">
               <img src="${thumb}" alt="${safeTitle}" class="suggestion-thumb" onerror="this.src='images/posters/m1.jpg'">
               <div>
                 <div class="suggestion-title">${item.title || item.name}</div>
@@ -1906,10 +2079,10 @@ function handleUniversalSearch(query) {
     return;
   }
 
-  const movies = (window.moviesData || []).filter(m => m.title.toLowerCase().includes(q) || (m.genre && m.genre.some(g => g.toLowerCase().includes(q))));
+  const movies = (window.moviesData || []).filter(m => m.title.toLowerCase().includes(q) || (m.genre && m.genre.some(g => g.toLowerCase().includes(g))));
   const games = (window.gamesData || []).filter(g => g.title.toLowerCase().includes(q) || (g.genre && g.genre.some(gen => gen.toLowerCase().includes(q))));
-  const actors = (window.actorsData || []).filter(a => a.name.toLowerCase().includes(q) || a.knownFor.toLowerCase().includes(q));
-  const directors = (window.directorsData || []).filter(d => d.name.toLowerCase().includes(q) || d.knownFor.toLowerCase().includes(q));
+  const actors = (window.actorsData || []).filter(a => a.name.toLowerCase().includes(q) || (a.knownFor && a.knownFor.toLowerCase().includes(q)));
+  const directors = (window.directorsData || []).filter(d => d.name.toLowerCase().includes(q) || (d.knownFor && d.knownFor.toLowerCase().includes(q)));
 
   if (movies.length === 0 && games.length === 0 && actors.length === 0 && directors.length === 0) {
     container.innerHTML = `
@@ -1929,15 +2102,18 @@ function handleUniversalSearch(query) {
       <div class="search-category-group">
         <h4><i class="fa-solid fa-film"></i> Movies (${movies.length})</h4>
         <div class="search-results-grid">
-          ${movies.slice(0, 6).map(m => `
-            <div class="search-result-card" onclick="CinePlay.openDetailsModal(window.moviesData.find(x => x.id === '${m.id}'), 'movie'); document.getElementById('universal-search-overlay').classList.remove('active');">
-              <img src="${m.poster}" alt="${m.title}" onerror="this.src='images/posters/m1.jpg'">
+          ${movies.slice(0, 6).map(m => {
+            const safeTitle = (m.title || "Untitled").replace(/'/g, "\\'");
+            return `
+            <div class="search-result-card" onclick="CinePlay.openFeaturedItem('${m.id}', 'movie'); document.getElementById('universal-search-overlay').classList.remove('active');">
+              <img src="${m.poster || 'data:image/svg+xml;charset=utf-8,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 300 450\' fill=\'%2314141d\'%3E%3C/svg%3E'}" alt="${safeTitle}" onerror="CinePlay.movieImgFallback(this, '${safeTitle}')">
               <div class="search-result-info">
                 <div class="search-result-title">${m.title}</div>
                 <div class="search-result-sub">⭐ ${m.rating} • ${m.year} • ${m.genre ? m.genre[0] : ''}</div>
               </div>
             </div>
-          `).join("")}
+            `;
+          }).join("")}
         </div>
       </div>
     `;
@@ -1948,15 +2124,18 @@ function handleUniversalSearch(query) {
       <div class="search-category-group">
         <h4><i class="fa-solid fa-gamepad"></i> Games (${games.length})</h4>
         <div class="search-results-grid">
-          ${games.slice(0, 6).map(g => `
-            <div class="search-result-card" onclick="CinePlay.openDetailsModal(window.gamesData.find(x => x.id === '${g.id}'), 'game'); document.getElementById('universal-search-overlay').classList.remove('active');">
-              <img src="${g.cover}" alt="${g.title}" onerror="this.src='images/posters/g1.jpg'">
+          ${games.slice(0, 6).map(g => {
+            const safeTitle = (g.title || "Untitled").replace(/'/g, "\\'");
+            return `
+            <div class="search-result-card" onclick="CinePlay.openFeaturedItem('${g.id}', 'game'); document.getElementById('universal-search-overlay').classList.remove('active');">
+              <img src="${g.cover || g.poster || 'images/posters/g1.jpg'}" alt="${safeTitle}" onerror="CinePlay.gameImgFallback(this, '${safeTitle}')">
               <div class="search-result-info">
                 <div class="search-result-title">${g.title}</div>
                 <div class="search-result-sub">⭐ ${g.rating} • ${g.year} • ${g.price || 'Free'}</div>
               </div>
             </div>
-          `).join("")}
+            `;
+          }).join("")}
         </div>
       </div>
     `;
@@ -2008,41 +2187,59 @@ function handleUniversalSearch(query) {
    ========================================================================== */
 let _lastSurprisePickId = null;
 
-function triggerSurpriseMe(filterType = "all") {
+async function triggerSurpriseMe(filterType = "all") {
   // 1. Close ALL UI overlays and dropdowns
   document.querySelectorAll(".search-suggestions-dropdown.active").forEach(d => d.classList.remove("active"));
-
-  // Close universal search overlay
   const universalOverlay = document.getElementById("universal-search-overlay");
   if (universalOverlay) universalOverlay.classList.remove("active");
-
-  // Close filter drawers
   const filterDrawer = document.getElementById("advanced-filter-drawer");
   if (filterDrawer) filterDrawer.style.display = "none";
-
   const gameDrawer = document.getElementById("advanced-game-filter-drawer");
   if (gameDrawer) gameDrawer.style.display = "none";
-
-  // Close mood quiz
   const moodQuiz = document.getElementById("mood-quiz-modal");
   if (moodQuiz) moodQuiz.classList.remove("active");
-
-  // ✅ Blur any focused input
   if (document.activeElement && typeof document.activeElement.blur === "function") {
     document.activeElement.blur();
   }
 
-  // 2. Select dataset
-  let pool = [];
-  const movies = window.moviesData || [];
-  const games = window.gamesData || [];
+  // 2. Get disliked IDs so we can exclude them
+  const dislikedIds = new Set(getDislikedIds());
 
-  if (filterType === "movie") {
-    pool = movies;
-  } else if (filterType === "game") {
-    pool = games;
-  } else {
-    pool = [...movies, ...games];
+  // 3. Build pool — try TMDB first for movies, fall back to local
+  let pool = [];
+
+  if (filterType === "movie" || filterType === "all") {
+    // Try to get a fresh random page from TMDB discover
+    let tmdbMovies = [];
+    if (window.CinePlayAPIService) {
+      try {
+        const randomPage = Math.floor(Math.random() * 10) + 1;
+        const res = await window.CinePlayAPIService.discoverTMDBMovies({
+          sort_by: "popularity.desc",
+          page: randomPage,
+          "vote_count.gte": 200
+        });
+        if (res && res.results && res.results.length > 0) {
+          tmdbMovies = res.results
+            .map(m => window.CinePlayAPIService.normalizeMovie(m))
+            .filter(Boolean)
+            .filter(m => !dislikedIds.has(String(m.id)));
+        }
+      } catch (e) {
+        console.warn("[SurpriseMe] TMDB discover failed, using local:", e);
+      }
+    }
+    const moviesPool = tmdbMovies.length > 0 ? tmdbMovies : (window.moviesData || []).filter(m => !dislikedIds.has(String(m.id)));
+    if (filterType === "movie") {
+      pool = moviesPool;
+    } else {
+      pool.push(...moviesPool);
+    }
+  }
+
+  if (filterType === "game" || filterType === "all") {
+    const gamesPool = (window.gamesData || []).filter(g => !dislikedIds.has(String(g.id)));
+    pool.push(...gamesPool);
   }
 
   if (pool.length === 0) {
@@ -2050,9 +2247,10 @@ function triggerSurpriseMe(filterType = "all") {
     return;
   }
 
+  // 4. Guarantee different pick each click
   let candidates = pool;
   if (pool.length > 1 && _lastSurprisePickId) {
-    const filtered = pool.filter(item => item.id !== _lastSurprisePickId);
+    const filtered = pool.filter(item => String(item.id) !== String(_lastSurprisePickId));
     if (filtered.length > 0) candidates = filtered;
   }
 
@@ -2071,11 +2269,64 @@ function triggerSurpriseMe(filterType = "all") {
 /* ==========================================================================
    Dislike Learner System
    ========================================================================== */
-function markAsDisliked(itemId, title) {
-  let dislikes = JSON.parse(localStorage.getItem("cineplay_dislikes") || "[]");
-  if (!dislikes.includes(itemId)) {
-    dislikes.push(itemId);
-    localStorage.setItem("cineplay_dislikes", JSON.stringify(dislikes));
+const DISLIKES_KEY = "cineplay_dislikes";
+
+/** Returns array of disliked item IDs (strings) */
+function getDislikedIds() {
+  const raw = JSON.parse(localStorage.getItem(DISLIKES_KEY) || "[]");
+  return raw.map(entry => (typeof entry === "object" ? String(entry.id) : String(entry)));
+}
+
+/** Returns full disliked item objects for rendering cards */
+function getDislikedItems() {
+  const raw = JSON.parse(localStorage.getItem(DISLIKES_KEY) || "[]");
+  return raw.filter(entry => typeof entry === "object" && entry.id);
+}
+
+/** Removes a specific item from the disliked list */
+function removeDisliked(itemId) {
+  const idStr = String(itemId);
+  let raw = JSON.parse(localStorage.getItem(DISLIKES_KEY) || "[]");
+  raw = raw.filter(entry => {
+    const id = typeof entry === "object" ? String(entry.id) : String(entry);
+    return id !== idStr;
+  });
+  localStorage.setItem(DISLIKES_KEY, JSON.stringify(raw));
+  window.dispatchEvent(new Event("dislikesChanged"));
+  if (window.CinePlayAuth && window.CinePlayAuth.isLoggedIn()) {
+    window.CinePlayAuth.syncDislikesToCloud(raw);
+  }
+}
+
+/** Adds item to disliked list — stores full mini object for the disliked tab */
+function markAsDisliked(itemId, title, itemData = null) {
+  const idStr = String(itemId);
+  let raw = JSON.parse(localStorage.getItem(DISLIKES_KEY) || "[]");
+  const exists = raw.some(entry => {
+    const id = typeof entry === "object" ? String(entry.id) : String(entry);
+    return id === idStr;
+  });
+  if (!exists) {
+    let item = itemData || (window._cineItemRegistry ? window._cineItemRegistry[idStr] : null);
+    if (!item) {
+      const dataSet = window.moviesData || [];
+      item = dataSet.find(i => String(i.id) === idStr);
+    }
+    const entry = {
+      id: idStr,
+      title: title || (item && item.title) || "Unknown",
+      poster: (item && (item.poster || item.cover)) || "",
+      rating: (item && (item.rating || item.tmdbRating)) || 0,
+      year: (item && item.year) || "",
+      type: (item && item.type) || (item && item.platform ? "game" : "movie"),
+      genre: (item && (item.genre || item.genres)) || []
+    };
+    raw.push(entry);
+    localStorage.setItem(DISLIKES_KEY, JSON.stringify(raw));
+    window.dispatchEvent(new Event("dislikesChanged"));
+    if (window.CinePlayAuth && window.CinePlayAuth.isLoggedIn()) {
+      window.CinePlayAuth.syncDislikesToCloud(raw);
+    }
   }
   showToast(`Got it. We'll show you fewer recommendations like "${title}".`, "fa-thumbs-down");
 }
@@ -2091,15 +2342,28 @@ function renderSkeletonCardsHTML(count = 4) {
 }
 
 // Global exposes for detail modals in slides or cards
-window.openFeaturedItem = function (id) {
-  const type = id.startsWith("m") ? "movie" : "game";
-  const dataSet = type === "movie" ? window.moviesData : window.gamesData;
-  const item = dataSet.find(i => i.id === id);
+window.openFeaturedItem = function (id, explicitType = null) {
+  const idStr = String(id);
+  let item = window._cineItemRegistry ? window._cineItemRegistry[idStr] : null;
+  const type = explicitType || (idStr.startsWith("g") ? "game" : "movie");
+  if (!item) {
+    const dataSet = type === "movie" ? window.moviesData : window.gamesData;
+    item = dataSet ? dataSet.find(i => String(i.id) === idStr) : null;
+  }
   if (item) {
     openDetailsModal(item, type);
+  } else if (idStr.startsWith("tmdb_") && window.CinePlayAPIService) {
+    const tmdbId = idStr.replace("tmdb_", "");
+    showToast("Loading details…", "fa-spinner");
+    CinePlayAPIService.getTMDBMovieDetails(tmdbId).then(data => {
+      if (data) {
+        const normalized = CinePlayAPIService.normalizeMovie(data);
+        if (window._cineItemRegistry) window._cineItemRegistry[idStr] = normalized;
+        openDetailsModal(normalized, "movie");
+      }
+    });
   }
 };
-
 // Unified namespace exports
 window.CinePlay = {
   // UI Renderers
@@ -2119,6 +2383,7 @@ window.CinePlay = {
 
   // Modal / Notifications / Trailers
   openDetailsModal,
+  openFeaturedItem: window.openFeaturedItem,
   closeModal,
   openTrailerModal,
   openMovieTrailer,
@@ -2129,6 +2394,9 @@ window.CinePlay = {
   openUniversalSearch,
   triggerSurpriseMe,
   markAsDisliked,
+  getDislikedIds,
+  getDislikedItems,
+  removeDisliked,
   renderSkeletonCardsHTML,
 
   // Fallbacks

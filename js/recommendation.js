@@ -247,17 +247,30 @@ async function submitQuizPreferences() {
 function renderMatchResults(matches, container) {
   if (!container) return;
 
+  // Save all matches to registry for live modal & favorites lookup
+  matches.forEach(m => {
+    if (m.item && m.item.id && window._cineItemRegistry) {
+      window._cineItemRegistry[m.item.id] = m.item;
+    }
+  });
+
   container.innerHTML = matches.map(match => {
     const item = match.item;
-    const type = quizState.contentType;
+    const type = quizState.contentType || (item.platform ? "game" : "movie");
     const isFav = window.CinePlay.isFavorite(item.id);
-    const imgUrl = type === "movie" ? item.poster : item.cover;
+    const imgUrl = item.poster || item.cover || item.headerImage || (type === "movie" ? "images/posters/m1.jpg" : "images/posters/g1.jpg");
+    const safeTitle = (item.title || item.name || "Untitled").replace(/'/g, "\\'");
+    const trailerKey = item.trailerKey || item.trailer || "";
+    const year = item.year || "";
+    const runtime = item.runtime ? (typeof item.runtime === "number" ? `${item.runtime} mins` : item.runtime) : (item.duration || "");
+    const rating = item.rating || item.tmdbRating || 8.0;
+    const desc = item.overview || item.description || "No overview available.";
 
     return `
-      <article class="media-card" data-id="${item.id}" data-type="${type}">
+      <article class="media-card" data-id="${item.id}" data-type="${type}" style="cursor: pointer;">
         <div class="card-img-wrapper shimmer-wrapper">
-          <img src="${imgUrl}" alt="${item.title}" class="card-img" loading="lazy" onerror="CinePlay.${type}ImgFallback(this, '${item.title}')">
-          <div class="card-rating-badge"><i class="fa-solid fa-star"></i> ${item.rating}</div>
+          <img src="${imgUrl}" alt="${safeTitle}" class="card-img" loading="lazy" onerror="CinePlay.${type}ImgFallback(this, '${safeTitle}')">
+          <div class="card-rating-badge"><i class="fa-solid fa-star"></i> ${typeof rating === 'number' ? rating.toFixed(1) : rating}</div>
           <button class="card-favorite-btn ${isFav ? 'active' : ''}" aria-label="Favorite button" onclick="event.stopPropagation(); handleMatchFavorite(this, '${item.id}', '${type}')">
             <i class="${isFav ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
           </button>
@@ -265,33 +278,38 @@ function renderMatchResults(matches, container) {
         </div>
         <div class="card-content">
           <div class="card-meta">
-            <span>${item.year}</span>
-            ${type === 'movie' ? `<span>${item.runtime} mins</span>` : `<span>${item.platform.slice(0, 2).join(", ")}</span>`}
+            <span>${year}</span>
+            <span>${type === 'movie' ? runtime : (item.platform ? item.platform.slice(0, 2).join(", ") : 'PC')}</span>
           </div>
-          <h3 class="card-title">${item.title}</h3>
+          <h3 class="card-title">${item.title || item.name}</h3>
           
-          <span class="match-label">${match.score}% Match</span>
+          <span class="match-label"><i class="fa-solid fa-bolt"></i> ${match.score}% Match</span>
           <div class="match-meter-wrapper">
             <div class="match-meter-bar animate-width" style="--match-width: ${match.score}%;"></div>
           </div>
 
-          <p class="card-desc" style="margin-top: 15px;">${item.description}</p>
-          <button class="card-btn">Learn More</button>
+          <p class="card-desc" style="margin-top: 12px;">${desc}</p>
+          
+          <div style="display: flex; gap: 8px; margin-top: 12px;">
+            <button class="card-btn" style="flex: 1;" onclick="event.stopPropagation(); window.CinePlay.openDetailsModal('${item.id}', '${type}')">
+              <i class="fa-solid fa-circle-info"></i> Learn More
+            </button>
+            ${trailerKey ? `<button class="card-btn btn-outline" style="padding: 0 14px; border-radius: 8px;" title="Watch Trailer" onclick="event.stopPropagation(); CinePlay.openTrailerModal('${trailerKey}', '${safeTitle}')"><i class="fa-solid fa-play"></i></button>` : `<button class="card-btn btn-outline" style="padding: 0 14px; border-radius: 8px;" title="Watch Trailer" onclick="event.stopPropagation(); CinePlay.openMovieTrailer('${item.id}', '${safeTitle}')"><i class="fa-solid fa-play"></i></button>`}
+          </div>
         </div>
       </article>
     `;
   }).join("");
 
-  // Bind click elements
-  const cards = container.querySelectorAll(".media-card");
+  // Bind click on entire card
+  const cards = container && container.querySelectorAll ? container.querySelectorAll(".media-card") : [];
   cards.forEach(card => {
-    card.addEventListener("click", () => {
+    card.addEventListener("click", (e) => {
+      if (e.target.closest(".card-favorite-btn") || e.target.closest(".card-btn")) return;
       const id = card.dataset.id;
       const type = card.dataset.type;
-      const dataSet = type === "movie" ? window.moviesData : window.gamesData;
-      const item = dataSet.find(i => i.id === id);
-      if (item) {
-        window.CinePlay.openDetailsModal(item, type);
+      if (window.CinePlay && window.CinePlay.openDetailsModal) {
+        window.CinePlay.openDetailsModal(id, type);
       }
     });
   });

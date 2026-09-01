@@ -7,9 +7,16 @@ import urllib.parse
 import json
 import time
 import socket
+import ssl
+import subprocess
 
 PORT = 8000
 DIRECTORY = os.path.dirname(os.path.abspath(__file__))
+
+# In-memory proxy caches with 15-minute TTL
+TMDB_CACHE = {}
+STEAM_CACHE = {}
+CACHE_TTL = 900  # 15 minutes
 
 def load_env_file():
     env_path = os.path.join(DIRECTORY, ".env")
@@ -69,44 +76,76 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             tmdb_url += f"?{encoded_params}"
 
         page = params.get("page", "1")
-        print(f"[DEBUG] 📄 TMDB Page {page}")
 
-        max_retries = 3
+        # 1. Check in-memory cache
+        now = time.time()
+        if tmdb_url in TMDB_CACHE:
+            cached_body, cached_time = TMDB_CACHE[tmdb_url]
+            if now - cached_time < CACHE_TTL:
+                print(f"[CACHE] ⚡ TMDB {sanitized} (Page {page}) [Instant]")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.send_header("Cache-Control", "public, max-age=3600")
+                self.end_headers()
+                self.wfile.write(cached_body)
+                return
+
+        # 2. Resilient Fetcher with Fast Backoff & SChannel Fallback
+        ctx = ssl.create_default_context()
+        max_retries = 4
+
         for attempt in range(max_retries):
+            # Try Python urllib first
             try:
                 req = urllib.request.Request(tmdb_url, headers={
                     "Accept": "application/json",
                     "Authorization": f"Bearer {token}",
-                    "User-Agent": "CinePlay/1.0"
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
                 })
-                
-                with urllib.request.urlopen(req, timeout=20) as response:
+                with urllib.request.urlopen(req, context=ctx, timeout=5) as response:
                     status_code = response.getcode()
                     body = response.read()
-                    print(f"[DEBUG] ✅ TMDB Page {page}: {status_code}")
-                    
-                    self.send_response(status_code)
+                    if status_code == 200 and len(body) > 2:
+                        TMDB_CACHE[tmdb_url] = (body, time.time())
+                        print(f"[DEBUG] ✅ TMDB {sanitized} (Page {page}): {status_code}")
+                        self.send_response(status_code)
+                        self.send_header("Content-Type", "application/json")
+                        self.send_header("Access-Control-Allow-Origin", "*")
+                        self.send_header("Cache-Control", "public, max-age=3600")
+                        self.end_headers()
+                        self.wfile.write(body)
+                        return
+            except Exception:
+                pass
+
+            # Fallback immediately to native curl.exe with Windows SChannel (bypasses OpenSSL renegotiation drops)
+            try:
+                proc = subprocess.run([
+                    "curl.exe", "-s", "--max-time", "5",
+                    "-H", f"Authorization: Bearer {token}",
+                    "-H", "Accept: application/json",
+                    tmdb_url
+                ], capture_output=True, timeout=6)
+                if proc.returncode == 0 and len(proc.stdout) > 20:
+                    TMDB_CACHE[tmdb_url] = (proc.stdout, time.time())
+                    print(f"[DEBUG] ✅ TMDB (via SChannel) {sanitized} (Page {page}): 200")
+                    self.send_response(200)
                     self.send_header("Content-Type", "application/json")
                     self.send_header("Access-Control-Allow-Origin", "*")
                     self.send_header("Cache-Control", "public, max-age=3600")
                     self.end_headers()
-                    self.wfile.write(body)
+                    self.wfile.write(proc.stdout)
                     return
-                    
-            except (urllib.error.URLError, socket.timeout, ConnectionResetError) as e:
-                print(f"[WARN] ⚠️ TMDB attempt {attempt + 1} failed: {type(e).__name__}")
-                if attempt < max_retries - 1:
-                    wait_time = (attempt + 1) * 2
-                    print(f"[DEBUG] ⏳ Waiting {wait_time}s before retry...")
-                    time.sleep(wait_time)
-                else:
-                    print(f"[ERROR] ❌ TMDB all attempts failed")
-                    self.send_json({"results": [], "page": int(page), "total_pages": 1, "total_results": 0}, 200)
-                    return
-            except Exception as e:
-                print(f"[ERROR] ❌ TMDB error: {e}")
-                self.send_json({"results": [], "page": int(page), "total_pages": 1, "total_results": 0}, 200)
-                return
+            except Exception:
+                pass
+
+            # Fast micro-sleep before retry (0.1s, 0.2s, 0.3s)
+            time.sleep(0.1 * (attempt + 1))
+
+        # If all attempts fail, serve empty structure gracefully
+        print(f"[WARN] ⚠️ TMDB fallback empty for {sanitized}")
+        self.send_json({"results": [], "page": int(page), "total_pages": 1, "total_results": 0}, 200)
 
     def handle_steam_proxy(self, parsed):
         qs = urllib.parse.parse_qs(parsed.query)
@@ -116,6 +155,19 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self.send_json({"error": "Missing 'action' parameter"}, 400)
             return
 
+        now = time.time()
+        cache_key = f"{action}_{parsed.query}"
+        if cache_key in STEAM_CACHE:
+            cached_body, cached_time = STEAM_CACHE[cache_key]
+            if now - cached_time < CACHE_TTL:
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.send_header("Cache-Control", "public, max-age=3600")
+                self.end_headers()
+                self.wfile.write(cached_body)
+                return
+
         try:
             if action == "search":
                 query = qs.get("query", [""])[0]
@@ -124,22 +176,21 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     return
                 
                 steam_url = f"https://store.steampowered.com/api/storesearch/?term={urllib.parse.quote(query)}&l=english&cc=IN"
-                print(f"[DEBUG] 🔄 Steam Search: {query}")
                 
                 req = urllib.request.Request(steam_url, headers={
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
                     "Accept": "application/json"
                 })
                 
-                with urllib.request.urlopen(req, timeout=15) as response:
+                with urllib.request.urlopen(req, timeout=10) as response:
                     body = response.read()
+                    STEAM_CACHE[cache_key] = (body, time.time())
                     self.send_response(200)
                     self.send_header("Content-Type", "application/json")
                     self.send_header("Access-Control-Allow-Origin", "*")
                     self.send_header("Cache-Control", "public, max-age=3600")
                     self.end_headers()
                     self.wfile.write(body)
-                    print(f"[DEBUG] ✅ Steam Search returned data")
                     
             elif action == "details":
                 app_id = qs.get("appid", [""])[0]
@@ -148,22 +199,21 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     return
                     
                 steam_url = f"https://store.steampowered.com/api/appdetails?appids={app_id}&l=english"
-                print(f"[DEBUG] 🔄 Steam Details: {app_id}")
                 
                 req = urllib.request.Request(steam_url, headers={
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
                     "Accept": "application/json"
                 })
                 
-                with urllib.request.urlopen(req, timeout=15) as response:
+                with urllib.request.urlopen(req, timeout=10) as response:
                     body = response.read()
+                    STEAM_CACHE[cache_key] = (body, time.time())
                     self.send_response(200)
                     self.send_header("Content-Type", "application/json")
                     self.send_header("Access-Control-Allow-Origin", "*")
                     self.send_header("Cache-Control", "public, max-age=3600")
                     self.end_headers()
                     self.wfile.write(body)
-                    print(f"[DEBUG] ✅ Steam Details returned data")
                     
             elif action == "reviews":
                 app_id = qs.get("appid", [""])[0]
@@ -172,35 +222,31 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     return
                     
                 steam_url = f"https://store.steampowered.com/appreviews/{app_id}?json=1&language=all"
-                print(f"[DEBUG] 🔄 Steam Reviews: {app_id}")
                 
                 req = urllib.request.Request(steam_url, headers={
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
                     "Accept": "application/json"
                 })
                 
-                with urllib.request.urlopen(req, timeout=15) as response:
+                with urllib.request.urlopen(req, timeout=10) as response:
                     body = response.read()
+                    STEAM_CACHE[cache_key] = (body, time.time())
                     self.send_response(200)
                     self.send_header("Content-Type", "application/json")
                     self.send_header("Access-Control-Allow-Origin", "*")
                     self.send_header("Cache-Control", "public, max-age=3600")
                     self.end_headers()
                     self.wfile.write(body)
-                    print(f"[DEBUG] ✅ Steam Reviews returned data")
             else:
                 self.send_json({"error": f"Unknown action: {action}"}, 400)
                 
         except urllib.error.HTTPError as e:
-            print(f"[ERROR] ❌ Steam HTTPError: {e.code}")
             self.send_response(e.code)
             self.send_header("Content-Type", "application/json")
             self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
             self.wfile.write(b'{"error": "Steam API error", "items": []}')
         except Exception as e:
-            print(f"[ERROR] ❌ Steam error: {e}")
-            # Return empty results instead of error to prevent UI breakage
             self.send_json({"items": [], "error": str(e)}, 200)
 
     def send_json(self, data, status=200):
@@ -224,19 +270,24 @@ def start_server():
         print("[ERROR] ❌ TMDB Token NOT loaded!")
     print("="*60)
     
-    socketserver.TCPServer.allow_reuse_address = True
+    socketserver.ThreadingTCPServer.allow_reuse_address = True
     
-    with socketserver.TCPServer(("", PORT), Handler) as httpd:
+    with socketserver.ThreadingTCPServer(("", PORT), Handler) as httpd:
         print(f"Serving files from: {DIRECTORY}")
         print(f"Local URL: http://localhost:{PORT}/")
         print("="*60)
         print("Press Ctrl+C to stop the server.")
         
-        try:
-            webbrowser.open(f"http://localhost:{PORT}/")
-        except Exception:
-            pass
-            
+        # Automatically open default browser in a non-blocking thread
+        import threading
+        def open_browser():
+            time.sleep(0.5)
+            try:
+                webbrowser.open(f"http://localhost:{PORT}/")
+            except Exception:
+                pass
+        threading.Thread(target=open_browser, daemon=True).start()
+
         try:
             httpd.serve_forever()
         except KeyboardInterrupt:
